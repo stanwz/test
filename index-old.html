@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="pixi.js"></script>
+</head>
+<body>
+<script>
+    var renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight);
+    // renderer.view.style.position = "absolute";
+    // renderer.view.style.display = "block";
+    document.body.appendChild(renderer.view);
+
+    var stage = new PIXI.Container();
+
+//    PIXI.loader
+//    .add("robot.png")
+//    .on("progress", loadProgressHandler)
+//    .load(setup);
+//
+//
+//    function setup() {
+//        var texture =  PIXI.utils.TextureCache["robot.png"];
+//
+//    texture.frame = new  PIXI.Rectangle(0, 0, 64, 64);
+
+//    var robot = new PIXI.Sprite(texture);
+
+//    robot.x = 320;
+//    robot.y = 320;
+
+//    robot.scale.set(1.5, 1.5);
+
+//    robot.anchor.x = 0.5;
+//    robot.anchor.y = 0.5;
+//
+//    robot.rotation = 0.5;
+
+    var rectangle = new PIXI.Graphics();
+
+    rectangle.beginFill(0x66CCFF);
+
+    rectangle.drawRect(200, 200, 1000, 250);
+
+    rectangle.endFill();
+
+    stage.addChild(rectangle);
+    renderer.render(stage);
+
+    rectangle.vx = 1;
+    rectangle.vy = -1;
+
+    requestAnimationFrame(test);
+
+    function test(time){
+
+//        var a = Math.sin(time % 5000 / 5000 * Math.PI);
+//        rectangle.x = a * 200 + 200;
+//        rectangle.y = a * 300 + 100;
+        rectangle.x += rectangle.vx;
+        rectangle.y += rectangle.vy;
+        renderer.render(stage);
+
+        requestAnimationFrame(test);
+    }
+
+</script>
+</body>
+</html>

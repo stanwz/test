@@ -3122,10 +3122,11 @@ var DrawStyle = {
 				Context2d.stroke();
 				Context2d.closePath();
 				for (segment = currentSegment; segment;) {
-					Context2d.fillStyle = "#FF0000", Context2d.beginPath();
-					Context2d.arc(segment.endPoint.x;
-					canvasDimensions.height / 2 + segment.endPoint.y - self.yOffset, 5, 0, 2 * Math.PI);
-					Context2d.fill(), Context2d.closePath();
+					Context2d.fillStyle = "#FF0000";
+					Context2d.beginPath();
+					Context2d.arc(segment.endPoint.x, canvasDimensions.height / 2 + segment.endPoint.y - self.yOffset, 5, 0, 2 * Math.PI);
+					Context2d.fill();
+					Context2d.closePath();
 					segment = segment.nextSegment
 				}
 			} else {

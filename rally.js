@@ -2917,14 +2917,14 @@ var ColorTransition = function(a, d, f) {
 		g.push(f)
 	})(a, d, f)
 };
-var Point2D = function(a, d) {
-	this.x = a ? a : 0;
-	this.y = d ? d : 0;
-	this.rotate = function(a) {
-		var d = this.x * Math.cos(a) - this.y * Math.sin(a);
-		a = this.x * Math.sin(a) + this.y * Math.cos(a);
+var Point2D = function(x, y) {
+	this.x = x ? x : 0;
+	this.y = y ? y : 0;
+	this.rotate = function(val) {
+		var d = this.x * Math.cos(val) - this.y * Math.sin(val);
+		val = this.x * Math.sin(val) + this.y * Math.cos(val);
 		this.x = d;
-		this.y = a
+		this.y = val
 	};
 	this.rotateAround = function(a, d) {
 		d = d || {
@@ -2940,16 +2940,15 @@ var Point2D = function(a, d) {
 		this.x += a;
 		this.y += d
 	};
-	this.scaleX = function(a) {
-		this.x *= a
+	this.scaleX = function(val) {
+		this.x *= val
 	};
-	this.scaleY = function(a) {
-		this.y *= a
+	this.scaleY = function(val) {
+		this.y *= val
 	};
-	this.scale = function(a) {
-		this.x *= a;
-		this.y *=
-			a
+	this.scale = function(val) {
+		this.x *= val;
+		this.y *= val;
 	}
 };
 var Point3D = function() {
@@ -2971,26 +2970,45 @@ var Polygon3D = function() {
 	};
 	this.__construct__()
 };
-var Flat3dSetup = function(a, d) {
-	var f = this,
+var Flat3dSetup = function(canvasDom, scale) {
+	var self = this,
 		g = [],
-		c, h, k, l, n = 0;
+		canvas, context2d, canvasWidth, canvasHeight, n = 0;
 	this.yOffset = 0;
 	this.scale = 1;
 	this.shouldClear = !0;
-	this.__construct__ = function(a, d) {
-		c = a;
-		h = c.getContext("2d");
-		d || (d = 1);
-		f.scale = d;
-		k = c.clientWidth * d;
-		l = c.clientHeight * d;
-		Math.max(k, l);
-		Math.tan(62.5 / 180 * Math.PI);
-		new Point2D(k / 2, 0)
+	/**
+	 *
+	 * @param canvasDom
+	 * @param scale
+	 * @private
+	 */
+	this.__construct__ = function(canvasDom, scale) {
+		canvas = canvasDom;
+		context2d = canvas.getContext("2d");
+		if (!scale) {
+			scale = 1;
+		}
+		self.scale = scale;
+		canvasWidth = canvas.clientWidth * scale;
+		canvasHeight = canvas.clientHeight * scale;
+		// Math.max(canvasWidth, canvasHeight);
+		// Math.tan(62.5 / 180 * Math.PI);
+
+		//Starting Drawing position?
+		new Point2D(canvasWidth / 2, 0);
 	};
-	this.addPolygonAtDepth = function(a, c) {
-		a && (c || (c = 0), n = Math.max(n, c), g[c] || (g[c] = []), g[c].push(a))
+	this.addPolygonAtDepth = function(polygon, flag) {
+		if (polygon) {
+			if (!flag) {
+				flag = 0
+			}
+			n = Math.max(n, flag);
+			if (!g[flag]) {
+				g[flag] = [];
+			}
+			g[flag].push(polygon)
+		}
 	};
 	this.removePolygon = function(a) {
 		for (var c = n; 0 <= c; c--)
@@ -2999,31 +3017,34 @@ var Flat3dSetup = function(a, d) {
 			}
 	};
 	this.clear = function() {
-		f.shouldClear &&
-		h.clearRect(0, 0, k, l)
+		if (self.shouldClear) {
+			context2d.clearRect(0, 0, canvasWidth, canvasHeight)
+		}
 	};
 	this.draw = function() {
-		f.shouldClear && h.clearRect(0, 0, k, l);
-		for (var a = n; 0 <= a; a--)
-			if (g[a])
-				for (var c = 0; c < g[a].length; c++) {
-					var d = g[a][c],
+		self.shouldClear && context2d.clearRect(0, 0, canvasWidth, canvasHeight);
+		for (var i = n; i >= 0; i--) {
+			if (g[i]) {
+				for (var c = 0; c < g[i].length; c++) {
+					var d = g[i][c],
 						s = d.points;
-					h.fillStyle = d.color.getRGBA();
-					h.beginPath();
-					h.moveTo(s[0].x * f.scale, s[0].y * f.scale + l / 2 - f.yOffset * f.scale);
-					for (var d = d.getVerticesLength(), w = 1; w < d; w++) h.lineTo(s[w].x * f.scale, s[w].y * f.scale + l / 2 - f.yOffset * f.scale);
-					h.lineTo(s[0].x * f.scale, s[0].y * f.scale + l / 2 - f.yOffset * f.scale);
-					h.fill();
-					h.closePath()
+					context2d.fillStyle = d.color.getRGBA();
+					context2d.beginPath();
+					context2d.moveTo(s[0].x * self.scale, s[0].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale);
+					for (var d = d.getVerticesLength(), w = 1; w < d; w++) context2d.lineTo(s[w].x * self.scale, s[w].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale);
+					context2d.lineTo(s[0].x * self.scale, s[0].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale);
+					context2d.fill();
+					context2d.closePath()
 				}
+			}
+		}
 	};
 	this.resetSize = function() {
-		k = c.clientWidth *
-			f.scale;
-		l = c.clientHeight * f.scale
+		canvasWidth = canvas.clientWidth *
+			self.scale;
+		canvasHeight = canvas.clientHeight * self.scale
 	};
-	this.__construct__(a, d)
+	this.__construct__(canvasDom, scale)
 };
 var DrawStyle = {
 		LINE: 0,
@@ -3047,19 +3068,21 @@ var DrawStyle = {
 		self.speed = self.idleSpeed;
 		var canvas, Context2d, canvasDimensions = {},
 			currentSegment = null,
-			r = 0,
+			totalSegmentLength = 0,
 			lengthMultiplier = 1,
-			s = null,
+			pullPoints = null,
 			w = 0;
 		this.yOffsetForce = this.yOffset = 0;
 		self.primaryColor = null;
-		var flat3dSetup = self.secondaryColor = null,
+		var flat3dDrawer = self.secondaryColor = null,
 			ribbonDomHolder = null;
 		self.setShouldClear = function(shouldClear) {
-			flat3dSetup && (flat3dSetup.shouldClear = shouldClear)
+			if (flat3dDrawer) {
+				flat3dDrawer.shouldClear = shouldClear;
+			}
 		};
 		self.clearCanvas = function() {
-			flat3dSetup.clear()
+			flat3dDrawer.clear();
 		};
 		self.setWidth = function(fullWidth, collapsedWidth) {
 			self.fullRibbonWidth = fullWidth;
@@ -3077,7 +3100,7 @@ var DrawStyle = {
 			var advanceSegment = function(segment, anchorPoint) {
 				segment.setColor();
 				segment.advance();
-				segment.applyForces(anchorPoint)
+				segment.applyForces(anchorPoint);
 			};
 			advanceSegment(lastSegment, SegmentAnchorPoint.CENTER);
 			for (var segment = lastSegment.previousSegment; segment;) {
@@ -3128,8 +3151,8 @@ var DrawStyle = {
 					segment = segment.nextSegment
 				}
 			} else if (self.drawStyle == DrawStyle.CANVAS_RIBBON) {
-				flat3dSetup.yOffset = self.yOffset;
-				flat3dSetup.draw();
+				flat3dDrawer.yOffset = self.yOffset;
+				flat3dDrawer.draw();
 			} else if (self.drawStyle == DrawStyle.DOM_RIBBON) {
 				ribbonDomHolder.yOffset = -self.yOffset + canvasDimensions.height / 2;
 				ribbonDomHolder.update();
@@ -3147,49 +3170,70 @@ var DrawStyle = {
 			self.straightenStrength = Math.max(Math.min(self.straightenStrength, 1), 0);
 			self.width = self.collapsedRibbonWidth + (self.fullRibbonWidth - self.collapsedRibbonWidth) * (1 - self.straightenStrength);
 			var a;
-			a = s ? s : getLastSegment(0.5);
+			a = pullPoints ? pullPoints : getLastSegment(0.5);
 			a.width = self.width;
 			a.straightenStrength = Math.min(self.straightenStrength + self.pullStrength, 1);
 			a.applyForces(SegmentAnchorPoint.CENTER);
-			for (var f = a.nextSegment, d; f;) {
-				f.width = self.width;
+			for (var segment = a.nextSegment, d; segment;) {
+				segment.width = self.width;
 				d = 1;
 				if (0 < self.pullSpread) {
-					d = f.distanceFromSegment(a, SearchDirection.LEFT) /
+					d = segment.distanceFromSegment(a, SearchDirection.LEFT) /
 						(1 * w);
 					var g = 2 * self.pullSpread,
 						h = 2 * g;
 					d = d < g ? 1 : d > h ? 0 : 1 - (d - g) / (h - g)
 				}
 				d *= self.pullStrength;
-				f.straightenStrength = Math.min(self.straightenStrength + d, 1);
-				f.applyForces(SegmentAnchorPoint.START);
-				f = f.nextSegment
+				segment.straightenStrength = Math.min(self.straightenStrength + d, 1);
+				segment.applyForces(SegmentAnchorPoint.START);
+				segment = segment.nextSegment
 			}
-			for (f = a.previousSegment; f;) f.width = self.width, d = 1, 0 < self.pullSpread && (d = f.distanceFromSegment(a, SearchDirection.RIGHT) / (1 * w), g = 2 * self.pullSpread, h = 2 * g, d = d < g ? 1 : d > h ? 0 : 1 - (d - g) / (h - g)), d *= self.pullStrength, f.straightenStrength = Math.min(self.straightenStrength + d, 1), f.applyForces(SegmentAnchorPoint.END), f = f.previousSegment
+			for (segment = a.previousSegment; segment;) segment.width = self.width, d = 1, 0 < self.pullSpread && (d = segment.distanceFromSegment(a, SearchDirection.RIGHT) / (1 * w), g = 2 * self.pullSpread, h = 2 * g, d = d < g ? 1 : d > h ? 0 : 1 - (d - g) / (h - g)), d *= self.pullStrength, segment.straightenStrength = Math.min(self.straightenStrength + d, 1), segment.applyForces(SegmentAnchorPoint.END), segment = segment.previousSegment
 		};
 		self.setPullPoint = function(a) {
-			s = getLastSegment(a);
-			w = r
+			pullPoints = getLastSegment(a);
+			w = totalSegmentLength
 		};
 		self.clearPullPoint = function() {
-			s = null
+			pullPoints = null
 		};
 		self.destroySegments = function() {
-			for (; - 800 > currentSegment.endPoint.x;) flat3dSetup && flat3dSetup.removePolygon(currentSegment.polygon), ribbonDomHolder && ribbonDomHolder.removeSegment(currentSegment), r -= currentSegment.segmentLength, currentSegment = currentSegment.nextSegment, currentSegment.previousSegment = null;
-			for (; currentSegment.startPoint.x > canvasDimensions.width + 800;) flat3dSetup && flat3dSetup.removePolygon(currentSegment.polygon), ribbonDomHolder && ribbonDomHolder.removeSegment(currentSegment), r -= currentSegment.segmentLength, currentSegment = currentSegment.previousSegment, currentSegment.nextSegment = null
+			for (;currentSegment.endPoint.x < -800;) {
+				if (flat3dDrawer) {
+					flat3dDrawer.removePolygon(currentSegment.polygon);
+				}
+				if (ribbonDomHolder) {
+					ribbonDomHolder.removeSegment(currentSegment);
+				}
+				totalSegmentLength -= currentSegment.segmentLength;
+				currentSegment = currentSegment.nextSegment;
+				currentSegment.previousSegment = null;
+			}
+
+			for (; currentSegment.startPoint.x > canvasDimensions.width + 800;) {
+				if (flat3dDrawer) {
+					flat3dDrawer.removePolygon(currentSegment.polygon);
+				}
+				if (ribbonDomHolder) {
+					ribbonDomHolder.removeSegment(currentSegment);
+				}
+				totalSegmentLength -= currentSegment.segmentLength;
+				currentSegment = currentSegment.previousSegment;
+				currentSegment.nextSegment = null;
+			}
 		};
 		self.createSegments = function() {
-			for (var segments = [], f = !1; currentSegment.startPoint.x > -600;) {
-				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, f);
+			for (var segments = [], flag = false; currentSegment.startPoint.x > -600;) {
+				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, flag);
 				currentSegment.setLengthMultiplier(lengthMultiplier);
 				segments.push(currentSegment);
-				for (var n = 0; D(currentSegment) && 5 > n;) {
+				for (var n = 0; hasSegmentsCloseToEachOther(currentSegment) && 5 > n;) {
 					n++;
 					currentSegment = segments[0].nextSegment;
 					currentSegment.previousSegment = null;
-					if (flat3dSetup)
-						for (var j = segments.length, i = 0; i < j; i++) flat3dSetup.removePolygon(segments[i].polygon);
+					if (flat3dDrawer)
+						for (var j = segments.length, i = 0; i < j; i++) flat3dDrawer.removePolygon(segments[i].polygon);
 					if (ribbonDomHolder)
 						for (j = segments.length, i = 0; i < j; i++) ribbonDomHolder.removeSegment(segments[i]);
 					segments = [];
@@ -3197,11 +3241,11 @@ var DrawStyle = {
 					currentSegment.setLengthMultiplier(lengthMultiplier);
 					segments.push(currentSegment)
 				}
-				r += currentSegment.segmentLength;
+				totalSegmentLength += currentSegment.segmentLength;
 				currentSegment.width = self.width;
 				currentSegment.straightenStrength = Math.max(currentSegment.nextSegment.straightenStrength, self.pullStrength);
 				currentSegment.applyForces(SegmentAnchorPoint.END);
-				if (flat3dSetup) {
+				if (flat3dDrawer) {
 					addPolygonToFlat3d(currentSegment);
 				}
 				if (ribbonDomHolder) {
@@ -3209,17 +3253,17 @@ var DrawStyle = {
 				}
 			}
 			segments = [];
-			for (f = !1; currentSegment.endPoint.x < canvasDimensions.width + 600;) {
-				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, f);
+			for (flag = false; currentSegment.endPoint.x < canvasDimensions.width + 600;) {
+				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, flag);
 				currentSegment.setLengthMultiplier(lengthMultiplier);
 				segments.push(currentSegment);
-				for (n = 0; D(currentSegment) && n < 5;) {
+				for (n = 0; hasSegmentsCloseToEachOther(currentSegment) && n < 5;) {
 					n++;
 					currentSegment = segments[0].previousSegment;
 					currentSegment.nextSegment = null;
-					if (flat3dSetup) {
+					if (flat3dDrawer) {
 						for (i = 0, j = segments.length; i < j; i++) {
-							flat3dSetup.removePolygon(segments[i].polygon);
+							flat3dDrawer.removePolygon(segments[i].polygon);
 						}
 					}
 					if (ribbonDomHolder) {
@@ -3228,15 +3272,15 @@ var DrawStyle = {
 						}
 					}
 					segments = [];
-					currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, !0);
+					currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, false);
 					currentSegment.setLengthMultiplier(lengthMultiplier);
 					segments.push(currentSegment)
 				}
-				r += currentSegment.segmentLength;
+				totalSegmentLength += currentSegment.segmentLength;
 				currentSegment.width = self.width;
 				currentSegment.straightenStrength = Math.max(currentSegment.previousSegment.straightenStrength, self.pullStrength);
 				currentSegment.applyForces(SegmentAnchorPoint.START);
-				if (flat3dSetup) {
+				if (flat3dDrawer) {
 					addPolygonToFlat3d(currentSegment);
 				}
 				if (ribbonDomHolder) {
@@ -3247,29 +3291,35 @@ var DrawStyle = {
 		self.resetSize = function() {
 			canvasDimensions.width = canvas.clientWidth;
 			canvasDimensions.height = canvas.clientHeight;
-			flat3dSetup && flat3dSetup.resetSize()
+			if (flat3dDrawer) {
+				flat3dDrawer.resetSize();
+			}
 		};
-		self.setColors = function(a, f) {
-			self.primaryColor.setRed(a.getRed());
-			self.primaryColor.setGreen(a.getGreen());
-			self.primaryColor.setBlue(a.getBlue());
-			self.secondaryColor.setRed(f.getRed());
-			self.secondaryColor.setGreen(f.getGreen());
-			self.secondaryColor.setBlue(f.getBlue())
+		self.setColors = function(color1, color2) {
+			self.primaryColor.setRed(color1.getRed());
+			self.primaryColor.setGreen(color1.getGreen());
+			self.primaryColor.setBlue(color1.getBlue());
+			self.secondaryColor.setRed(color2.getRed());
+			self.secondaryColor.setGreen(color2.getGreen());
+			self.secondaryColor.setBlue(color2.getBlue());
 		};
 		self.secondaryColorFromPrimaryColor = function(a) {
-			return new Color(a.getHue(), a.getSaturation() + 7, a.getValue() -
-				19, ColorMode.HSV)
+			return new Color(a.getHue(), a.getSaturation() + 7, a.getValue() - 19, ColorMode.HSV)
 		};
 		self.getCurrentVerticalPosition = function() {
-			for (var a = 0, f = 0, d = currentSegment; d;) a++, f += d.startPoint.y, f += d.endPoint.y, d = d.nextSegment;
-			return (f / (2 * a) - self.yOffset + canvasDimensions.height / 2 - self.width / 2) / (canvasDimensions.height - self.width)
+			for (var count = 0, totalHeight = 0, segment = currentSegment; segment;) {
+				count++;
+				totalHeight += segment.startPoint.y;
+				totalHeight += segment.endPoint.y;
+				segment = segment.nextSegment
+			}
+			return (totalHeight / (2 * count) - self.yOffset + canvasDimensions.height / 2 - self.width / 2) / (canvasDimensions.height - self.width)
 		};
-		function addPolygonToFlat3d(a) {
-			if (a.backface) {
-				flat3dSetup.addPolygonAtDepth(a.polygon, 1);
+		function addPolygonToFlat3d(segment) {
+			if (segment.backface) {
+				flat3dDrawer.addPolygonAtDepth(segment.polygon, 1);
 			} else {
-				flat3dSetup.addPolygonAtDepth(a.polygon, 0);
+				flat3dDrawer.addPolygonAtDepth(segment.polygon, 0);
 			}
 		}
 		function getLastSegment(a) {
@@ -3289,37 +3339,54 @@ var DrawStyle = {
 			}
 			return totalHeight / (2 * totalSegments) + (0.5 - self.verticalPosition) * (canvasDimensions.height - self.width)
 		}
-		function D(a) {
-			var c;
-			c = a.nextSegment ? 0 : 1;
-			var f;
-			f = 0 == c ? a.nextSegment.nextSegment : a.previousSegment.previousSegment;
-			for (var d = 0; f && 6 > d;) {
-				var g;
-				g = a.originalStartPoint;
-				var h = a.originalEndPoint,
-					k = f.originalStartPoint,
-					n = f.originalEndPoint,
-					p = B(h, g),
-					l = B(n, k),
-					r = F(B(k, g), p),
-					p = F(p, l);
-				0 == r && 0 == p ? g = 0 > k.x - g.x != 0 > k.x - h.x != 0 > n.x - g.x != 0 > n.x - h.x || 0 > k.y - g.y != 0 > k.y - h.y != 0 > n.y - g.y != 0 > n.y - h.y : 0 == p ? g = !1 : (h = r / p, g = F(B(k, g), l) / p, g = 0 <= g && 1 >= g && 0 <= h && 1 >= h);
-				if (g) return !0;
-				f = 0 == c ? f.nextSegment :
-					f.previousSegment;
-				d++
+		function hasSegmentsCloseToEachOther(segment) {
+			var isLast = segment.nextSegment ? 0 : 1;
+			var current;
+			if (!isLast) {
+				current = segment.nextSegment.nextSegment;
+			} else {
+				current = segment.previousSegment.previousSegment;
 			}
-			return !1
+
+			for (var i = 0; current && i < 6;) {
+				var segOriginalStartPoint = segment.originalStartPoint;
+				var segOriginalEndPoint = segment.originalEndPoint;
+				var currentOriginalStartingPoint = current.originalStartPoint;
+				var currentOriginalEndPoint = current.originalEndPoint;
+				var segDistance = getDistance(segOriginalEndPoint, segOriginalStartPoint);
+				var currentDistance = getDistance(currentOriginalEndPoint, currentOriginalStartingPoint);
+				var areaDiff = getAreaDiff(getDistance(currentOriginalStartingPoint, segOriginalStartPoint), segDistance);
+
+				var diff1, diff2, close;
+
+				if (areaDiff == 0 && segDistance == 0) {
+					close = currentOriginalStartingPoint.x < 0 - segOriginalStartPoint.x != 0 > currentOriginalStartingPoint.x - segOriginalEndPoint.x != 0 > currentOriginalEndPoint.x - segOriginalStartPoint.x != 0 > currentOriginalEndPoint.x - segOriginalEndPoint.x || 0 > currentOriginalStartingPoint.y - segOriginalStartPoint.y != 0 > currentOriginalStartingPoint.y - segOriginalEndPoint.y != 0 > currentOriginalEndPoint.y - segOriginalStartPoint.y != 0 > currentOriginalEndPoint.y - segOriginalEndPoint.y
+				} else {
+					diff1 = areaDiff / segDistance;
+					diff2 = getAreaDiff(getDistance(currentOriginalStartingPoint, segOriginalStartPoint), currentDistance) / segDistance;
+					close = 0 <= diff2 && 1 >= diff2 && 0 <= diff1 && 1 >= diff1
+				}
+
+				if (close) {
+					return true;
+				}
+				if (!isLast) {
+					current = current.nextSegment;
+				} else {
+					current = current.previousSegment;
+				}
+				i++
+			}
+			return false;
 		}
-		function F(a, c) {
-			return a.x * c.y - a.y * c.x
+		function getAreaDiff(point1, point2) {
+			return point1.x * point2.y - point1.y * point2.x;
 		}
-		function B(a, c) {
-			var f = {};
-			f.x = a.x - c.x;
-			f.y = a.y - c.y;
-			return f
+		function getDistance(point1, point2) {
+			var distance = {};
+			distance.x = point1.x - point2.x;
+			distance.y = point1.y - point2.y;
+			return distance;
 		}
 		(function(domElem, color1, color2, scale) {
 			canvas = domElem;
@@ -3333,7 +3400,7 @@ var DrawStyle = {
 			canvasDimensions.height = canvas.clientHeight;
 
 			if (color1 && color1.substr) {
-				self.primaryColor = new Color(color1)
+				self.primaryColor = new Color(color1);
 			} else {
 				if (color1) {
 					self.primaryColor = color1;
@@ -3357,7 +3424,7 @@ var DrawStyle = {
 			}
 
 			if (self.drawStyle == DrawStyle.CANVAS_RIBBON) {
-				flat3dSetup = new Flat3dSetup(canvas, scale);
+				flat3dDrawer = new Flat3dSetup(canvas, scale);
 			}
 			if (self.drawStyle == DrawStyle.DOM_RIBBON) {
 				ribbonDomHolder = new RibbonDOMHolder(canvas);
@@ -3365,9 +3432,9 @@ var DrawStyle = {
 			currentSegment = new RibbonSegment(null, self.primaryColor, self.secondaryColor);
 			currentSegment.setLengthMultiplier(lengthMultiplier);
 
-			r += currentSegment.segmentLength;
+			totalSegmentLength += currentSegment.segmentLength;
 
-			if (flat3dSetup) {
+			if (flat3dDrawer) {
 				addPolygonToFlat3d(currentSegment);
 			}
 			if (ribbonDomHolder) {
@@ -3399,7 +3466,15 @@ var segmentMinimumLength = 300,
 	oneSidedWeightedRandom = new WeightedRandom(1.5, WeightOption.NEUTRAL, WeightOption.STRONGER),
 	twoSidedWeightedRandom = new WeightedRandom(1.5, WeightOption.STRONGER, WeightOption.STRONGER),
 	degToRad = Math.PI / 180,
-	RibbonSegment = function(a, d, f, g) {
+	/**
+	 *
+	 * @param segment
+	 * @param color1
+	 * @param color2
+	 * @param flag
+	 * @constructor
+	 */
+	RibbonSegment = function(segment, color1, color2, flag) {
 		var self = this;
 		self.previousSegment = null;
 		self.nextSegment = null;
@@ -3413,9 +3488,9 @@ var segmentMinimumLength = 300,
 		self.straightenStrength = 0;
 		self.simplexStepper = new SimplexStepper(0.6);
 		self.polygon = new Polygon3D;
-		self.primaryColor = d;
-		self.secondaryColor = f;
-		self.color = d;
+		self.primaryColor = color1;
+		self.secondaryColor = color2;
+		self.color = color1;
 		var h = 20,
 			k = 1;
 		this.move = function(a) {
@@ -3432,13 +3507,15 @@ var segmentMinimumLength = 300,
 			if (a == SegmentAnchorPoint.CENTER) {
 				var g;
 				a = (self.startPoint.x + self.endPoint.x) / 2;
-				g = (self.startPoint.y +
-					self.endPoint.y) / 2;
+				g = (self.startPoint.y + self.endPoint.y) / 2;
 				self.endPoint.x = a + self.segmentLength / 2 * d;
 				self.endPoint.y = g + self.segmentLength / 2 * f;
 				self.startPoint.x = a - self.segmentLength / 2 * d;
 				self.startPoint.y = g - self.segmentLength / 2 * f
-			} else a == SegmentAnchorPoint.START ? (self.previousSegment && (self.startPoint.x = self.previousSegment.endPoint.x, self.startPoint.y = self.previousSegment.endPoint.y), self.endPoint.x = self.startPoint.x + self.segmentLength * d, self.endPoint.y = self.startPoint.y + self.segmentLength * f) : (self.nextSegment && (self.endPoint.x = self.nextSegment.startPoint.x, self.endPoint.y = self.nextSegment.startPoint.y), self.startPoint.x =
+			} else a == SegmentAnchorPoint.START ? (
+				self.previousSegment && (self.startPoint.x = self.previousSegment.endPoint.x, self.startPoint.y = self.previousSegment.endPoint.y),
+					self.endPoint.x = self.startPoint.x + self.segmentLength * d, self.endPoint.y = self.startPoint.y + self.segmentLength * f) :
+				(self.nextSegment && (self.endPoint.x = self.nextSegment.startPoint.x, self.endPoint.y = self.nextSegment.startPoint.y), self.startPoint.x =
 				self.endPoint.x - self.segmentLength * d, self.startPoint.y = self.endPoint.y - self.segmentLength * f)
 		};
 		self.setColor = function() {
@@ -3516,42 +3593,166 @@ var segmentMinimumLength = 300,
 			k = a;
 			self.segmentLength *= newMultiplier
 		};
-		var l = function(a, c, f) {
-			return f == AllowedDirection.UP ? -Math.abs(oneSidedWeightedRandom.random() * a) : f == AllowedDirection.DOWN ? Math.abs(oneSidedWeightedRandom.random() * c) : a + twoSidedWeightedRandom.random() * (c - a)
+		var getRandomAngle = function(minDegree, maxDegree, allowedDirection) {
+			if (allowedDirection == AllowedDirection.UP) {
+				return -Math.abs(oneSidedWeightedRandom.random() * minDegree);
+			} else if (allowedDirection == AllowedDirection.DOWN) {
+				return Math.abs(oneSidedWeightedRandom.random() * maxDegree);
+			} else {
+				return minDegree + twoSidedWeightedRandom.random() * (maxDegree - minDegree);
+			}
 		};
-		(function(a, f) {
-			for (var d = "", g = 32; 0 < g; --g) d += "0123456789abcdefghijklmnopqrstuvwxyz" [Math.round(35 *
-				Math.random())];
-			self.identifier = d;
-			a && (self.backface = !a.backface, self.backface && (self.color = new Color(0, 0, 0), h /= 2));
+		(function(segment, starting) {
+			var str = "0123456789abcdefghijklmnopqrstuvwxyz";
+			var identifier = "";
+			for (var length = 32; 0 < length; --length) {
+				identifier += str[Math.round(35 * Math.random())];
+			}
+			self.identifier = identifier;
+			if (segment) {
+				self.backface = !segment.backface;
+				if (self.backface) {
+					self.color = new Color(0, 0, 0);
+					h /= 2;
+				}
+			}
 			self.polygon.color = self.color;
-			a && a.nextSegment && !a.previousSegment ? (self.nextSegment = a, self.nextSegment.previousSegment = self, self.endPoint.x = self.nextSegment.startPoint.x, self.endPoint.y = self.nextSegment.startPoint.y, self.endPoint.z = self.nextSegment.startPoint.z, self.originalEndPoint.x = self.nextSegment.originalStartPoint.x, self.originalEndPoint.y = self.nextSegment.originalStartPoint.y, self.originalEndPoint.z = self.nextSegment.originalStartPoint.z) :
-				a ? (self.previousSegment = a, self.previousSegment.nextSegment = self, self.startPoint.x = self.previousSegment.endPoint.x, self.startPoint.y = self.previousSegment.endPoint.y, self.startPoint.z = self.previousSegment.endPoint.z, self.originalStartPoint.x = self.previousSegment.originalEndPoint.x, self.originalStartPoint.y = self.previousSegment.originalEndPoint.y, self.originalStartPoint.z = self.previousSegment.originalEndPoint.z) : (self.startPoint.x = -700, self.startPoint.y = 0, self.startPoint.z = 0, self.originalStartPoint.x = self.startPoint.x, self.originalStartPoint.y = self.startPoint.y, self.originalStartPoint.z =
-					self.startPoint.z);
-			d = AllowedDirection.ANY;
-			f || (self.previousSegment ? (100 <= self.originalStartPoint.y && (d = AllowedDirection.UP), -100 >= self.originalStartPoint.y && (d = AllowedDirection.DOWN)) : self.nextSegment && (100 <= self.originalEndPoint.y && (d = AllowedDirection.DOWN), -100 >= self.originalEndPoint.y && (d = AllowedDirection.UP)));
-			self.previousSegment ? (self.primaryAngle = -30 < self.previousSegment.primaryAngle && 30 > self.previousSegment.primaryAngle ? l(-130, 130, d) : -90 < self.previousSegment.primaryAngle && 90 > self.previousSegment.primaryAngle ? l(-60, 60, d) : -90 >= self.previousSegment.primaryAngle ?
-				l(self.previousSegment.primaryAngle + 90 - 45, self.previousSegment.primaryAngle + 90 + 45, d) : l(self.previousSegment.primaryAngle - 90 - 45, self.previousSegment.primaryAngle - 90 + 45, d), d = self.primaryAngle - self.previousSegment.primaryAngle, 55 > d && -55 < d && (self.primaryAngle = 0 < d ? self.previousSegment.primaryAngle + 55.55 : self.previousSegment.primaryAngle - 55.55)) : self.nextSegment ? (self.primaryAngle = -30 < self.nextSegment.primaryAngle && 30 > self.nextSegment.primaryAngle ? l(-130, 130, d) : -90 < self.nextSegment.primaryAngle && 90 > self.nextSegment.primaryAngle ? l(-60, 60, d) : -90 >= self.nextSegment.primaryAngle ?
-				l(self.nextSegment.primaryAngle + 90 - 45, self.nextSegment.primaryAngle + 90 + 45, d) : l(self.nextSegment.primaryAngle - 90 - 45, self.nextSegment.primaryAngle - 90 + 45, d), d = self.nextSegment.primaryAngle - self.primaryAngle, 55 > d && -55 < d && (self.primaryAngle = 0 < d ? self.nextSegment.primaryAngle + 55.55 : self.nextSegment.primaryAngle - 55.55)) : self.primaryAngle = l(-130, 130, d);
-			d = Math.random();
-			d = self.previousSegment && 90 < Math.abs(self.previousSegment.primaryAngle) && 90 > Math.abs(self.primaryAngle) ? 0.6 + 0.4 * d : self.nextSegment && 90 < Math.abs(self.nextSegment.primaryAngle) && 90 > Math.abs(self.primaryAngle) ?
-			0.6 + 0.4 * d : -90 < self.primaryAngle && 90 > self.primaryAngle ? 0.3 + 0.7 * d : 0.3 * d;
-			self.segmentLength = segmentMinimumLength + d * (segmentMaximumLength - segmentMinimumLength);
-			self.nextSegment ? (self.startPoint.x = self.endPoint.x - self.segmentLength * Math.cos(self.primaryAngle * degToRad), self.startPoint.y = self.endPoint.y - self.segmentLength * Math.sin(self.primaryAngle * degToRad), self.startPoint.z = 0, self.originalStartPoint.x = self.originalEndPoint.x - self.segmentLength * Math.cos(self.primaryAngle * degToRad), self.originalStartPoint.y = self.originalEndPoint.y - self.segmentLength * Math.sin(self.primaryAngle *
-					degToRad), self.originalStartPoint.z = 0) : (self.endPoint.x = self.startPoint.x + self.segmentLength * Math.cos(self.primaryAngle * degToRad), self.endPoint.y = self.startPoint.y + self.segmentLength * Math.sin(self.primaryAngle * degToRad), self.endPoint.z = 0, self.originalEndPoint.x = self.originalStartPoint.x + self.segmentLength * Math.cos(self.primaryAngle * degToRad), self.originalEndPoint.y = self.originalStartPoint.y + self.segmentLength * Math.sin(self.primaryAngle * degToRad), self.originalEndPoint.z = 0)
-		})(a, g)
+			if (segment && segment.nextSegment && !segment.previousSegment) {
+				self.nextSegment = segment;
+				self.nextSegment.previousSegment = self;
+				self.endPoint.x = self.nextSegment.startPoint.x;
+				self.endPoint.y = self.nextSegment.startPoint.y;
+				self.endPoint.z = self.nextSegment.startPoint.z;
+				self.originalEndPoint.x = self.nextSegment.originalStartPoint.x;
+				self.originalEndPoint.y = self.nextSegment.originalStartPoint.y;
+				self.originalEndPoint.z = self.nextSegment.originalStartPoint.z;
+			} else if (segment){
+				self.previousSegment = segment;
+				self.previousSegment.nextSegment = self;
+				self.startPoint.x = self.previousSegment.endPoint.x;
+				self.startPoint.y = self.previousSegment.endPoint.y;
+				self.startPoint.z = self.previousSegment.endPoint.z;
+				self.originalStartPoint.x = self.previousSegment.originalEndPoint.x;
+				self.originalStartPoint.y = self.previousSegment.originalEndPoint.y;
+				self.originalStartPoint.z = self.previousSegment.originalEndPoint.z
+			} else {
+				self.startPoint.x = -700;
+				self.startPoint.y = 0;
+				self.startPoint.z = 0;
+				self.originalStartPoint.x = self.startPoint.x;
+				self.originalStartPoint.y = self.startPoint.y;
+				self.originalStartPoint.z = self.startPoint.z;
+			}
+
+			var allowedDirection = AllowedDirection.ANY;
+
+			if (!starting) {
+				if (self.previousSegment) {
+					if (self.originalStartPoint.y >= 100){
+						allowedDirection = AllowedDirection.UP;
+					}
+					if (self.originalStartPoint.y <= -100) {
+						allowedDirection = AllowedDirection.DOWN;
+					}
+				} else if (self.nextSegment) {
+					if (self.originalEndPoint.y >= 100){
+						allowedDirection = AllowedDirection.DOWN;
+					}
+					if (self.originalEndPoint.y <= -100){
+						allowedDirection = AllowedDirection.UP;
+					}
+				}
+			}
+
+			if (self.previousSegment) {
+
+				if (-30 < self.previousSegment.primaryAngle && 30 > self.previousSegment.primaryAngle) {
+					self.primaryAngle = getRandomAngle(-130, 130, allowedDirection);
+				} else if (-90 < self.previousSegment.primaryAngle && 90 > self.previousSegment.primaryAngle) {
+					self.primaryAngle = getRandomAngle(-60, 60, allowedDirection);
+				} else if (-90 >= self.previousSegment.primaryAngle) {
+					self.primaryAngle = getRandomAngle(self.previousSegment.primaryAngle + 90 - 45, self.previousSegment.primaryAngle + 90 + 45, allowedDirection);
+				} else {
+					self.primaryAngle = getRandomAngle(self.previousSegment.primaryAngle - 90 - 45, self.previousSegment.primaryAngle - 90 + 45, allowedDirection);
+				}
+
+				allowedDirection = self.primaryAngle - self.previousSegment.primaryAngle;
+
+				if (55 > allowedDirection && -55 < allowedDirection) {
+					if(0 < allowedDirection) {
+						self.primaryAngle = self.previousSegment.primaryAngle + 55.55;
+					} else {
+						self.primaryAngle = self.previousSegment.primaryAngle - 55.55;
+					}
+				}
+
+			} else if(self.nextSegment) {
+
+				if (-30 < self.nextSegment.primaryAngle && 30 > self.nextSegment.primaryAngle) {
+					self.primaryAngle = getRandomAngle(-130, 130, allowedDirection);
+				} else if (-90 < self.nextSegment.primaryAngle && 90 > self.nextSegment.primaryAngle) {
+					self.primaryAngle = getRandomAngle(-60, 60, allowedDirection)
+				} else if (-90 >= self.nextSegment.primaryAngle) {
+					self.primaryAngle = getRandomAngle(self.nextSegment.primaryAngle + 90 - 45, self.nextSegment.primaryAngle + 90 + 45, allowedDirection);
+				} else {
+					self.primaryAngle = getRandomAngle(self.nextSegment.primaryAngle - 90 - 45, self.nextSegment.primaryAngle - 90 + 45, allowedDirection);
+				}
+				allowedDirection = self.nextSegment.primaryAngle - self.primaryAngle;
+
+				if (55 > allowedDirection && -55 < allowedDirection) {
+					self.primaryAngle = 0 < allowedDirection ? self.nextSegment.primaryAngle + 55.55 : self.nextSegment.primaryAngle - 55.55;
+					if (0 < allowedDirection) {
+						self.primaryAngle = self.nextSegment.primaryAngle + 55.55;
+					} else {
+						self.primaryAngle = self.nextSegment.primaryAngle - 55.55;
+					}
+				}
+			} else {
+				self.primaryAngle = getRandomAngle(-130, 130, allowedDirection);
+			}
+
+			var allowedAngle = Math.random();
+
+			if (self.previousSegment && 90 < Math.abs(self.previousSegment.primaryAngle) && 90 > Math.abs(self.primaryAngle)) {
+				allowedAngle = 0.6 + 0.4 * allowedAngle;
+			} else if (self.nextSegment && 90 < Math.abs(self.nextSegment.primaryAngle) && 90 > Math.abs(self.primaryAngle)) {
+				allowedAngle = 0.6 + 0.4 * allowedAngle;
+			} else if (-90 < self.primaryAngle && 90 > self.primaryAngle ) {
+				allowedAngle = 0.3 + 0.7 * allowedAngle;
+			} else {
+				allowedAngle = 0.3 * allowedAngle;
+			}
+
+			self.segmentLength = segmentMinimumLength + allowedAngle * (segmentMaximumLength - segmentMinimumLength);
+
+			if (self.nextSegment) {
+				self.startPoint.x = self.endPoint.x - self.segmentLength * Math.cos(self.primaryAngle * degToRad);
+				self.startPoint.y = self.endPoint.y - self.segmentLength * Math.sin(self.primaryAngle * degToRad);
+				self.startPoint.z = 0;
+				self.originalStartPoint.x = self.originalEndPoint.x - self.segmentLength * Math.cos(self.primaryAngle * degToRad);
+				self.originalStartPoint.y = self.originalEndPoint.y - self.segmentLength * Math.sin(self.primaryAngle * degToRad);
+				self.originalStartPoint.z = 0
+			} else {
+				self.endPoint.x = self.startPoint.x + self.segmentLength * Math.cos(self.primaryAngle * degToRad);
+				self.endPoint.y = self.startPoint.y + self.segmentLength * Math.sin(self.primaryAngle * degToRad);
+				self.endPoint.z = 0;
+				self.originalEndPoint.x = self.originalStartPoint.x + self.segmentLength * Math.cos(self.primaryAngle * degToRad);
+				self.originalEndPoint.y = self.originalStartPoint.y + self.segmentLength * Math.sin(self.primaryAngle * degToRad);
+				self.originalEndPoint.z = 0;
+			}
+		})(segment, flag)
 	};
 var RibbonDOMHolder = function(a) {
-	var d = this;
-	d.holder = null;
-	d.yOffset = 0;
+	var self = this;
+	self.holder = null;
+	self.yOffset = 0;
 	var f = [],
 		g = [];
-	d.addSegment = function(a) {
+	self.addSegment = function(a) {
 		console.log("addSegment", a.identifier);
 		f.push(new RibbonDOMSegment(a, c()))
 	};
-	d.removeSegment = function(a) {
+	self.removeSegment = function(a) {
 		console.log("removeSegment", a.identifier);
 		for (var c = f.length, d = 0; d < c; d++)
 			if (f[d].segment === a) {
@@ -3562,8 +3763,8 @@ var RibbonDOMHolder = function(a) {
 				break
 			}
 	};
-	d.update = function() {
-		for (var a = f.length, c = 0; c < a; c++) f[c].yOffset = d.yOffset, f[c].update()
+	self.update = function() {
+		for (var a = f.length, c = 0; c < a; c++) f[c].yOffset = self.yOffset, f[c].update()
 	};
 	var c = function() {
 		if (g.length) return g.pop();
@@ -3576,7 +3777,7 @@ var RibbonDOMHolder = function(a) {
 		a.style.top = "-50px";
 		a.style.left = "-150px";
 		a.style.webkitTransformOrigin = "50% 50% 0";
-		d.holder.appendChild(a);
+		self.holder.appendChild(a);
 		var c = document.createElement("div");
 		c.className = "start-triangle";
 		c.style.width = "0";
@@ -3609,48 +3810,48 @@ var RibbonDOMHolder = function(a) {
 		a.appendChild(c);
 		return a
 	};
-	d.holder = a
+	self.holder = a
 };
 var RibbonDOMSegment = function(a, d) {
-	var f = this;
-	f.segment = null;
-	f.element = null;
-	f.centerFill = null;
-	f.startTriangle = null;
-	f.endTriangle = null;
-	f.yOffset = 0;
-	f.update = function() {
-		var a = f.segment.getStartEndCapLength(),
-			c = f.segment.getEndEndCapLength(),
-			d = (f.segment.segmentLength + a + c) / 300,
-			k = f.segment.width / 100,
+	var self = this;
+	self.segment = null;
+	self.element = null;
+	self.centerFill = null;
+	self.startTriangle = null;
+	self.endTriangle = null;
+	self.yOffset = 0;
+	self.update = function() {
+		var a = self.segment.getStartEndCapLength(),
+			c = self.segment.getEndEndCapLength(),
+			d = (self.segment.segmentLength + a + c) / 300,
+			k = self.segment.width / 100,
 			l = (c - a) / 2,
-			n = (f.segment.startPoint.x + f.segment.endPoint.x) / 2 + Math.cos(f.segment.getCurrentAngle() * Math.PI / 180) * l,
-			l = (f.segment.startPoint.y + f.segment.endPoint.y) / 2 + f.yOffset + Math.sin(f.segment.getCurrentAngle() *
+			n = (self.segment.startPoint.x + self.segment.endPoint.x) / 2 + Math.cos(self.segment.getCurrentAngle() * Math.PI / 180) * l,
+			l = (self.segment.startPoint.y + self.segment.endPoint.y) / 2 + self.yOffset + Math.sin(self.segment.getCurrentAngle() *
 					Math.PI / 180) * l,
-			p = f.segment.getCurrentAngle();
-		f.element.style.webkitTransform = "translate3d(" + n + "px," + l + "px, 0px) rotate3d(0,0,1," + p * Math.PI / 180 + "rad) scale3d(" + d + "," + k + ",1)";
-		f.element.style.zIndex = f.segment.backface ? 0 : 1;
-		d = 2 * a / (f.segment.segmentLength + a + c);
+			p = self.segment.getCurrentAngle();
+		self.element.style.webkitTransform = "translate3d(" + n + "px," + l + "px, 0px) rotate3d(0,0,1," + p * Math.PI / 180 + "rad) scale3d(" + d + "," + k + ",1)";
+		self.element.style.zIndex = self.segment.backface ? 0 : 1;
+		d = 2 * a / (self.segment.segmentLength + a + c);
 		k = 1;
-		f.segment.previousSegment && f.segment.previousSegment.getCurrentAngle() > f.segment.getCurrentAngle() && (k = -1);
-		f.startTriangle.style.webkitTransform = "scale3d(" + 3 * d + ", " + k + ", 1)";
-		k = 2 * c / (f.segment.segmentLength + a + c);
+		self.segment.previousSegment && self.segment.previousSegment.getCurrentAngle() > self.segment.getCurrentAngle() && (k = -1);
+		self.startTriangle.style.webkitTransform = "scale3d(" + 3 * d + ", " + k + ", 1)";
+		k = 2 * c / (self.segment.segmentLength + a + c);
 		n = 1;
-		f.segment.nextSegment && f.segment.getCurrentAngle() <
-		f.segment.nextSegment.getCurrentAngle() && (n = -1);
-		f.endTriangle.style.webkitTransform = "scale3d(" + 3 * k + ", " + n + ", 1)";
-		a = 0.5 / (f.segment.segmentLength + a + c);
-		f.centerFill.style.webkitTransform = "translate3d(" + 300 * (d - a) + "%, 0px, 0px) scale3d(" + 3 * (1 - (d + k) + a + a) + ", 1, 1)"
+		self.segment.nextSegment && self.segment.getCurrentAngle() <
+		self.segment.nextSegment.getCurrentAngle() && (n = -1);
+		self.endTriangle.style.webkitTransform = "scale3d(" + 3 * k + ", " + n + ", 1)";
+		a = 0.5 / (self.segment.segmentLength + a + c);
+		self.centerFill.style.webkitTransform = "translate3d(" + 300 * (d - a) + "%, 0px, 0px) scale3d(" + 3 * (1 - (d + k) + a + a) + ", 1, 1)"
 	};
 	(function(a, c) {
-		f.segment = a;
-		f.element = c;
-		f.element.style.display = "block";
-		f.centerFill = f.element.getElementsByClassName("center-fill")[0];
-		f.startTriangle = f.element.getElementsByClassName("start-triangle")[0];
-		f.endTriangle = f.element.getElementsByClassName("end-triangle")[0];
-		f.update()
+		self.segment = a;
+		self.element = c;
+		self.element.style.display = "block";
+		self.centerFill = self.element.getElementsByClassName("center-fill")[0];
+		self.startTriangle = self.element.getElementsByClassName("start-triangle")[0];
+		self.endTriangle = self.element.getElementsByClassName("end-triangle")[0];
+		self.update()
 	})(a, d)
 };
 var RibbonPullDirection = {
@@ -3962,7 +4163,7 @@ var Sprite = function() {
 	}
 };
 var Stage = function(a, d) {
-	var f = this;
+	var self = this;
 	this.scale = 1;
 	this.canvas = a;
 	this.children = this.context = null;
@@ -4007,23 +4208,23 @@ var Stage = function(a, d) {
 		for (var a = 0; a < this.children.length; a++) this.children[a].resetMouse()
 	};
 	this.refreshCanvas = function(a, c) {
-		f.context.clearRect(0, 0, f.canvas.width, f.canvas.height)
+		self.context.clearRect(0, 0, self.canvas.width, self.canvas.height)
 	};
 	this.refreshMouseCanvas = function(a, c) {};
 	this.startRendering = function() {
-		f.rendering || (GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, this.render), GlobalEvents.addListener(GlobalEvent.MOUSE_EVAL,
-			this.evaluateMouse), f.rendering = !0)
+		self.rendering || (GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, this.render), GlobalEvents.addListener(GlobalEvent.MOUSE_EVAL,
+			this.evaluateMouse), self.rendering = !0)
 	};
 	this.stopRendering = function() {
-		f.rendering && (GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, this.render), GlobalEvents.removeListener(GlobalEvent.MOUSE_EVAL, this.evaluateMouse), f.rendering = !1)
+		self.rendering && (GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, this.render), GlobalEvents.removeListener(GlobalEvent.MOUSE_EVAL, this.evaluateMouse), self.rendering = !1)
 	};
 	this.render = function() {
-		f.refreshCanvas();
-		f.mouseEnabled && f.refreshMouseCanvas();
-		for (var a = 0; a < f.children.length; a++) {
-			var c = f.children[a];
-			c.render(f.context);
-			f.mouseEnabled && (c.render(f.mouseContext, !0), f.dispatchMouseEvents())
+		self.refreshCanvas();
+		self.mouseEnabled && self.refreshMouseCanvas();
+		for (var a = 0; a < self.children.length; a++) {
+			var c = self.children[a];
+			c.render(self.context);
+			self.mouseEnabled && (c.render(self.mouseContext, !0), self.dispatchMouseEvents())
 		}
 	};
 	this.dispatchMouseEvents = function() {
@@ -4047,7 +4248,7 @@ var Stage = function(a, d) {
 		}
 	};
 	this.evaluateMouse = function() {
-		for (var a = "", c = f.mouseFocus; c;) {
+		for (var a = "", c = self.mouseFocus; c;) {
 			if (c.buttonMode) {
 				a = "pointer";
 				break
@@ -4059,31 +4260,31 @@ var Stage = function(a, d) {
 		window.focus()
 	};
 	this.onMouseDown = function(a) {
-		f.mouseFocus && f.mouseFocus.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_DOWN))
+		self.mouseFocus && self.mouseFocus.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_DOWN))
 	};
 	this.onMouseUp = function(a) {
-		f.mouseFocus && f.mouseFocus.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_UP))
+		self.mouseFocus && self.mouseFocus.dispatchEvent(new MouseEvent(MouseEvent.MOUSE_UP))
 	};
 	this.onMouseClick = function(a) {
-		f.mouseFocus && f.mouseFocus.dispatchEvent(new MouseEvent(MouseEvent.CLICK))
+		self.mouseFocus && self.mouseFocus.dispatchEvent(new MouseEvent(MouseEvent.CLICK))
 	};
 	this.onMouseOver = function(a) {
-		f.canvas.onmousemove = f.onMouseMove;
-		f.mouseOver = !0
+		self.canvas.onmousemove = self.onMouseMove;
+		self.mouseOver = !0
 	};
 	this.onMouseOut =
 		function(a) {
-			if (f.mouseFocus) {
-				a = f.mouseFocus.getAncestry();
+			if (self.mouseFocus) {
+				a = self.mouseFocus.getAncestry();
 				for (var c = 0; c < a.length; c++) a[c].dispatchRollOut()
 			}
-			f.canvas.onmousemove = void 0;
-			f.mouseFocus = !1;
-			f.mouseOver = !1
+			self.canvas.onmousemove = void 0;
+			self.mouseFocus = !1;
+			self.mouseOver = !1
 		};
 	this.onMouseMove = function(a) {
-		f.layerX = void 0 == a.offsetX ? a.layerX : a.offsetX;
-		f.layerY = void 0 == a.offsetY ? a.layerY : a.offsetY
+		self.layerX = void 0 == a.offsetX ? a.layerX : a.offsetX;
+		self.layerY = void 0 == a.offsetY ? a.layerY : a.offsetY
 	};
 	this.addChild = function(a) {
 		this.children.push(a);
@@ -4149,7 +4350,7 @@ Stage.suspend = function() {
 	clearInterval(Stage.renderInterval)
 };
 var Triangle = function(a, d, f, g, c, h) {
-	var k = this;
+	var self = this;
 	this.onscreen = h;
 	this.shot = d;
 	this.primaryColor = f;
@@ -4180,72 +4381,72 @@ var Triangle = function(a, d, f, g, c, h) {
 		this.isAnimated = /.gif/g.test(this.img.src)
 	};
 	this.setOnscreen = function(a) {
-		k.onscreen = a;
-		k.isLoaded && (k.onscreen ? k.isAnimated && k.stage.startRendering() : k.stage.stopRendering())
+		self.onscreen = a;
+		self.isLoaded && (self.onscreen ? self.isAnimated && self.stage.startRendering() : self.stage.stopRendering())
 	};
 	this.onload = function() {
-		k.onscreen ? (R.startRendering(), setTimeout(function() {
-				k.stage.startRendering();
-				k.triangleMask.addEventListener("triangle_ready", k.triangleReady);
-				k.triangleMask.fadeIn()
+		self.onscreen ? (R.startRendering(), setTimeout(function() {
+				self.stage.startRendering();
+				self.triangleMask.addEventListener("triangle_ready", self.triangleReady);
+				self.triangleMask.fadeIn()
 			},
-			250)) : (k.triangleMask.drawImage = !0, k.triangleMask.scaleX = 1, k.triangleMask.scaleY = 1, k.triangleMask.blackAlpha = 0, k.stage.render(), k.finishLoad())
+			250)) : (self.triangleMask.drawImage = !0, self.triangleMask.scaleX = 1, self.triangleMask.scaleY = 1, self.triangleMask.blackAlpha = 0, self.stage.render(), self.finishLoad())
 	};
 	this.triangleReady = function() {
-		k.isAnimated || k.stage.stopRendering();
-		k.finishLoad()
+		self.isAnimated || self.stage.stopRendering();
+		self.finishLoad()
 	};
 	this.finishLoad = function() {
-		k.isLoaded = !0;
+		self.isLoaded = !0;
 		GlobalEvents.dispatch({
 			name: "TriangleLoad",
 			triangle: this
 		});
-		k.triangleMask.addEventListener(TriangleMask.STOP_RENDERING, k.stopTriangle);
-		k.triangleMask.addEventListener(TriangleMask.START_RENDERING, k.startTriangle);
-		k.stage.canvas.addEventListener("touchstart",
+		self.triangleMask.addEventListener(TriangleMask.STOP_RENDERING, self.stopTriangle);
+		self.triangleMask.addEventListener(TriangleMask.START_RENDERING, self.startTriangle);
+		self.stage.canvas.addEventListener("touchstart",
 			function(a) {
-				k.isTapping = !0;
-				k.touchStartPoint.x = a.touches[0].pageX;
-				k.touchStartPoint.y = a.touches[0].pageY;
-				k.touchScreenPoint.x = a.touches[0].clientX;
-				k.touchScreenPoint.y = a.touches[0].clientY
+				self.isTapping = !0;
+				self.touchStartPoint.x = a.touches[0].pageX;
+				self.touchStartPoint.y = a.touches[0].pageY;
+				self.touchScreenPoint.x = a.touches[0].clientX;
+				self.touchScreenPoint.y = a.touches[0].clientY
 			}, !1);
-		k.stage.canvas.addEventListener("touchmove", function(a) {
-			5 < Math.abs(a.touches[0].pageX - k.touchStartPoint.x) && (k.isTapping = !1);
-			5 < Math.abs(a.touches[0].pageY - k.touchStartPoint.y) && (k.isTapping = !1);
-			k.touchScreenPoint.x = a.touches[0].clientX;
-			k.touchScreenPoint.y = a.touches[0].clientY
+		self.stage.canvas.addEventListener("touchmove", function(a) {
+			5 < Math.abs(a.touches[0].pageX - self.touchStartPoint.x) && (self.isTapping = !1);
+			5 < Math.abs(a.touches[0].pageY - self.touchStartPoint.y) && (self.isTapping = !1);
+			self.touchScreenPoint.x = a.touches[0].clientX;
+			self.touchScreenPoint.y = a.touches[0].clientY
 		}, !1);
-		k.stage.canvas.addEventListener("touchend",
+		self.stage.canvas.addEventListener("touchend",
 			function(a) {
-				k.isTapping && (k.triangleMask.isTriangle ? k.triangleMask.toggle() : 180 < k.touchScreenPoint.y - k.stage.canvas.getBoundingClientRect().top ? (a.preventDefault(), window.open(k.shot.html_url)) : k.triangleMask.toggle());
-				k.isTapping = !1
+				self.isTapping && (self.triangleMask.isTriangle ? self.triangleMask.toggle() : 180 < self.touchScreenPoint.y - self.stage.canvas.getBoundingClientRect().top ? (a.preventDefault(), window.open(self.shot.html_url)) : self.triangleMask.toggle());
+				self.isTapping = !1
 			}, !1);
-		k.stage.canvas.addEventListener("mouseover", k.mouseOver, !1);
-		k.stage.canvas.addEventListener("mouseout", k.mouseOut, !1);
-		k.isAnimated && k.stage.startRendering()
+		self.stage.canvas.addEventListener("mouseover", self.mouseOver, !1);
+		self.stage.canvas.addEventListener("mouseout", self.mouseOut, !1);
+		self.isAnimated && self.stage.startRendering()
 	};
 	this.mouseOver = function() {
-		k.over = !0;
-		k.stopped = !1;
-		k.stage.enableMouse();
-		k.stage.startRendering();
-		k.stage.mouseOver = !0
+		self.over = !0;
+		self.stopped = !1;
+		self.stage.enableMouse();
+		self.stage.startRendering();
+		self.stage.mouseOver = !0
 	};
 	this.mouseOut = function() {
-		k.over = !1;
-		k.stopped ? (k.stage.disableMouse(), k.isAnimated || k.stage.stopRendering(), k.stage.mouseOver = !1) : k.triangleMask.rollOut()
+		self.over = !1;
+		self.stopped ? (self.stage.disableMouse(), self.isAnimated || self.stage.stopRendering(), self.stage.mouseOver = !1) : self.triangleMask.rollOut()
 	};
 	this.startTriangle = function(a) {
-		k.stopped = !1;
-		k.stage.enableMouse();
-		k.stage.startRendering();
-		k.stage.mouseOver = !0
+		self.stopped = !1;
+		self.stage.enableMouse();
+		self.stage.startRendering();
+		self.stage.mouseOver = !0
 	};
 	this.stopTriangle = function(a) {
-		k.stopped = !0;
-		!1 == k.over && (k.stage.disableMouse(), k.isAnimated || k.stage.stopRendering(), k.stage.mouseOver = !1)
+		self.stopped = !0;
+		!1 == self.over && (self.stage.disableMouse(), self.isAnimated || self.stage.stopRendering(), self.stage.mouseOver = !1)
 	};
 	this.__construct__()
 };
@@ -4257,7 +4458,7 @@ TriangleMask.READY = "triangle_ready";
 
 function TriangleMask(a, d, f, g, c) {
 	Sprite.call(this);
-	var h = this;
+	var self = this;
 	this.scale = c;
 	this.img = a;
 	this.shot = d;
@@ -4289,9 +4490,9 @@ function TriangleMask(a, d, f, g, c) {
 		this.noTilt = !1;
 		this.isTriangle = !0;
 		this.rolledOver = this.toggling = this.drawImage = !1;
-		this.icons = new Icons(this.shot, this.primaryColor, this.ctaColor, h.scale);
+		this.icons = new Icons(this.shot, this.primaryColor, this.ctaColor, self.scale);
 		this.icons.visible = !1;
-		this.bottomBar = new BottomBar(this.primaryColor.getHex(), h.scale);
+		this.bottomBar = new BottomBar(this.primaryColor.getHex(), self.scale);
 		this.bottomBar.visible = !1;
 		this.bottomBar.x = -159 * this.scale;
 		this.bottomBar.y = 100 * this.scale;
@@ -4322,17 +4523,17 @@ function TriangleMask(a, d, f, g, c) {
 	};
 	this.fadeIn = function() {
 		this.drawImage = !0;
-		new Tween(h, 300, {
+		new Tween(self, 300, {
 			scaleX: 1,
 			scaleY: 1,
 			blackAlpha: 0,
 			ease: Ease.easeOut.expo,
 			onComplete: function() {
-				h.dispatchEvent({
+				self.dispatchEvent({
 					name: TriangleMask.READY,
-					triangle: h
+					triangle: self
 				});
-				h.blackAlpha = 0
+				self.blackAlpha = 0
 			}
 		})
 	};
@@ -4364,17 +4565,17 @@ function TriangleMask(a, d, f, g, c) {
 		this.c7 = this.getPointOnLine(d, g, (n - 1.75 * f) / n);
 		this.c9 = this.getPointOnLine(c, g, (q - 1.75 * f) / q);
 		this.rotateMask(this.maskAngle);
-		h.drawTriangle(a);
+		self.drawTriangle(a);
 		a.save();
 		a.clip();
-		h.drawImage && a.drawImage(this.img, this.imageX, this.imageY, k, l);
+		self.drawImage && a.drawImage(this.img, this.imageX, this.imageY, k, l);
 		a.fillStyle = "rgba(40,41,44," + this.blackAlpha + ")";
-		a.fillRect(-200 * h.scale, -180 * h.scale, 400 * h.scale, 300 * h.scale)
+		a.fillRect(-200 * self.scale, -180 * self.scale, 400 * self.scale, 300 * self.scale)
 	};
 	this.afterDraw = function(a) {
 		a.restore();
 		a.strokeStyle = "#eeeeee";
-		a.lineWidth = 1 * h.scale;
+		a.lineWidth = 1 * self.scale;
 		a.stroke()
 	};
 	this.drawPoints = function(a) {
@@ -4434,10 +4635,10 @@ function TriangleMask(a, d, f, g, c) {
 	this.mouseDraw = function(a) {
 		a.beginPath();
 		a.fillStyle = "#00ff00";
-		a.rect(-h.x, -h.y, 300 * this.scale, 300 * this.scale);
+		a.rect(-self.x, -self.y, 300 * this.scale, 300 * this.scale);
 		a.closePath();
 		a.fill();
-		h.rolledOver && h.isTriangle && (a.lineWidth = 25 * this.scale);
+		self.rolledOver && self.isTriangle && (a.lineWidth = 25 * this.scale);
 		a.fillStyle = this.mouseString;
 		a.strokeStyle = this.mouseString;
 		this.drawTriangle(a);
@@ -4458,17 +4659,17 @@ function TriangleMask(a, d, f, g, c) {
 		this.c9.rotate(a)
 	};
 	this.circleMorph = function() {
-		h.cornerTween && h.cornerTween.stop();
-		h.spinTween && h.spinTween.stop();
-		h.tiltTween && h.tiltTween.stop();
-		h.icons.show();
-		h.icons.visible = !0;
-		h.isTriangle = !1;
-		h.cornerTween = new Tween(h, 800, {
+		self.cornerTween && self.cornerTween.stop();
+		self.spinTween && self.spinTween.stop();
+		self.tiltTween && self.tiltTween.stop();
+		self.icons.show();
+		self.icons.visible = !0;
+		self.isTriangle = !1;
+		self.cornerTween = new Tween(self, 800, {
 			cornerRadius: t,
 			ease: Ease.easeInOut.expo
 		});
-		h.spinTween = new Tween(h, 800, {
+		self.spinTween = new Tween(self, 800, {
 			y: q,
 			scaleX: 1.5,
 			scaleY: 1.5,
@@ -4476,32 +4677,32 @@ function TriangleMask(a, d, f, g, c) {
 			rotation: 90,
 			ease: Ease.easeInOut.back,
 			onComplete: function() {
-				h.y = q;
-				h.scaleX = 1.5;
-				h.scaleY = 1.5;
-				h.imageX = u;
-				h.imageY = -q;
-				h.rotation = 90;
-				h.maskAngle = 0;
-				h.blackAlpha = 1;
-				h.drawImage = !1;
-				h.toggling = !1
+				self.y = q;
+				self.scaleX = 1.5;
+				self.scaleY = 1.5;
+				self.imageX = u;
+				self.imageY = -q;
+				self.rotation = 90;
+				self.maskAngle = 0;
+				self.blackAlpha = 1;
+				self.drawImage = !1;
+				self.toggling = !1
 			}
 		})
 	};
 	this.triangleMorph = function() {
-		h.tiltTween && h.tiltTween.stop();
-		h.cornerTween && h.cornerTween.stop();
-		h.spinTween && h.spinTween.stop();
-		h.maskAngle = 0;
-		h.imageX = u;
-		h.imageY = -p;
-		h.cornerTween = new Tween(h, 800, {
+		self.tiltTween && self.tiltTween.stop();
+		self.cornerTween && self.cornerTween.stop();
+		self.spinTween && self.spinTween.stop();
+		self.maskAngle = 0;
+		self.imageX = u;
+		self.imageY = -p;
+		self.cornerTween = new Tween(self, 800, {
 			delay: 200,
 			cornerRadius: s,
 			ease: Ease.easeInOut.expo
 		});
-		h.spinTween = new Tween(h, 800, {
+		self.spinTween = new Tween(self, 800, {
 			y: p,
 			scaleX: 1,
 			scaleY: 1,
@@ -4510,56 +4711,56 @@ function TriangleMask(a, d, f, g, c) {
 			rotation: 0,
 			ease: Ease.easeInOut.back,
 			onComplete: function() {
-				h.y = p;
-				h.rotation = 0;
-				h.blackAlpha = 0;
-				h.scaleX = 1;
-				h.scaleY = 1;
-				h.dispatchEvent({
+				self.y = p;
+				self.rotation = 0;
+				self.blackAlpha = 0;
+				self.scaleX = 1;
+				self.scaleY = 1;
+				self.dispatchEvent({
 					name: TriangleMask.STOP_RENDERING,
-					triangle: h
+					triangle: self
 				});
-				h.icons.visible = !1;
-				h.isTriangle = !0;
-				h.toggling = !1
+				self.icons.visible = !1;
+				self.isTriangle = !0;
+				self.toggling = !1
 			}
 		});
-		h.icons.hide();
-		h.drawImage = !0
+		self.icons.hide();
+		self.drawImage = !0
 	};
 	this.toggle = function() {
-		if (h.toggling) return !1;
-		h.toggling = !0;
-		h.dispatchEvent({
+		if (self.toggling) return !1;
+		self.toggling = !0;
+		self.dispatchEvent({
 			name: TriangleMask.START_RENDERING,
-			triangle: h
+			triangle: self
 		});
-		h.isTriangle ?
-			(h.circleMorph(), h.buttonMode = !1, GlobalEvents.dispatch(new GlobalEvent(GlobalEvent.EVAL_MOUSE)), GlobalEvents.dispatch({
+		self.isTriangle ?
+			(self.circleMorph(), self.buttonMode = !1, GlobalEvents.dispatch(new GlobalEvent(GlobalEvent.EVAL_MOUSE)), GlobalEvents.dispatch({
 				name: "TriangleToggleIn",
-				triangle: h
-			})) : (h.triangleMorph(), h.buttonMode = !0, GlobalEvents.dispatch(new GlobalEvent(GlobalEvent.EVAL_MOUSE)), GlobalEvents.dispatch({
+				triangle: self
+			})) : (self.triangleMorph(), self.buttonMode = !0, GlobalEvents.dispatch(new GlobalEvent(GlobalEvent.EVAL_MOUSE)), GlobalEvents.dispatch({
 			name: "TriangleToggleOut",
-			triangle: h
+			triangle: self
 		}));
-		h.barTween && h.barTween.stop();
-		h.barTween = new Tween(h.bottomBar, 400, {
+		self.barTween && self.barTween.stop();
+		self.barTween = new Tween(self.bottomBar, 400, {
 			rotation: 20,
-			y: 100 * h.scale,
+			y: 100 * self.scale,
 			ease: Ease.easeOut.quint
 		});
-		h.bottomBar.hide()
+		self.bottomBar.hide()
 	};
 	this.rollOver = function() {
-		if (!h.isTriangle || h.toggling) return !1;
-		h.out = !1;
-		h.rolledOver = !0;
-		h.dispatchEvent({
+		if (!self.isTriangle || self.toggling) return !1;
+		self.out = !1;
+		self.rolledOver = !0;
+		self.dispatchEvent({
 			name: TriangleMask.START_RENDERING,
-			triangle: h
+			triangle: self
 		});
-		h.tiltTween && h.tiltTween.stop();
-		h.tiltTween = new Tween(h, 600, {
+		self.tiltTween && self.tiltTween.stop();
+		self.tiltTween = new Tween(self, 600, {
 			maskAngle: 10,
 			cornerRadius: w,
 			y: r,
@@ -4567,31 +4768,31 @@ function TriangleMask(a, d, f, g, c) {
 			ease: Ease.easeOut.quint,
 			onComplete: function() {}
 		});
-		h.imageTween && h.imageTween.stop();
-		h.imageTween = new Tween(h, 800, {
+		self.imageTween && self.imageTween.stop();
+		self.imageTween = new Tween(self, 800, {
 			imageX: v,
 			ease: Ease.easeOut.quint,
 			onComplete: function() {}
 		});
-		h.barTween && h.barTween.stop();
-		h.barTween = new Tween(h.bottomBar, 400, {
+		self.barTween && self.barTween.stop();
+		self.barTween = new Tween(self.bottomBar, 400, {
 			rotation: 0,
-			y: 30 * h.scale,
+			y: 30 * self.scale,
 			ease: Ease.easeOut.quint
 		});
-		h.bottomBar.visible = !0;
-		h.bottomBar.show()
+		self.bottomBar.visible = !0;
+		self.bottomBar.show()
 	};
 	this.rollOut = function() {
-		if (!h.isTriangle || h.toggling || h.out) return !1;
-		h.out = !0;
-		h.rolledOver = !1;
-		h.dispatchEvent({
+		if (!self.isTriangle || self.toggling || self.out) return !1;
+		self.out = !0;
+		self.rolledOver = !1;
+		self.dispatchEvent({
 			name: TriangleMask.START_RENDERING,
-			triangle: h
+			triangle: self
 		});
-		h.tiltTween && h.tiltTween.stop();
-		h.tiltTween = new Tween(h, 600, {
+		self.tiltTween && self.tiltTween.stop();
+		self.tiltTween = new Tween(self, 600, {
 			maskAngle: 0,
 			cornerRadius: s,
 			y: p,
@@ -4600,26 +4801,26 @@ function TriangleMask(a, d, f, g, c) {
 			onUpdate: function() {},
 			onComplete: function() {}
 		});
-		h.imageTween && h.imageTween.stop();
-		h.imageTween = new Tween(h, 800, {
+		self.imageTween && self.imageTween.stop();
+		self.imageTween = new Tween(self, 800, {
 			imageX: u,
 			ease: Ease.easeOut.quint,
 			onComplete: function() {
-				h.dispatchEvent({
+				self.dispatchEvent({
 					name: TriangleMask.STOP_RENDERING,
-					triangle: h
+					triangle: self
 				});
-				h.bottomBar.visible = !1;
-				h.out = !1
+				self.bottomBar.visible = !1;
+				self.out = !1
 			}
 		});
-		h.barTween && h.barTween.stop();
-		h.barTween = new Tween(h.bottomBar, 400, {
+		self.barTween && self.barTween.stop();
+		self.barTween = new Tween(self.bottomBar, 400, {
 			rotation: 20,
-			y: 100 * h.scale,
+			y: 100 * self.scale,
 			ease: Ease.easeIn.quint
 		});
-		h.bottomBar.hide()
+		self.bottomBar.hide()
 	};
 	this.toString = function() {
 		return "[Sprite TriangleMask]"
@@ -4631,7 +4832,7 @@ Icons.prototype.constructor = Icons;
 
 function Icons(a, d, f, g) {
 	Sprite.call(this);
-	var c = this;
+	var self = this;
 	this.scale = g;
 	this.shot = a;
 	this.primaryColor = d;
@@ -4666,17 +4867,17 @@ function Icons(a, d, f, g) {
 		this.views = new Image;
 		this.likes = new Image;
 		this.statsIcons = new Image;
-		1 < c.scale ?
+		1 < self.scale ?
 			(this.views.src = STATIC_URL + "img/case-studies/common/dribbble-views@2x.png", this.likes.src = STATIC_URL + "img/case-studies/common/dribbble-likes@2x.png", this.statsIcons.src = STATIC_URL + "img/case-studies/common/dribbble-stats-icons@2x.png") : (this.views.src = STATIC_URL + "img/case-studies/common/dribbble-views.png", this.likes.src = STATIC_URL + "img/case-studies/common/dribbble-likes.png", this.statsIcons.src = STATIC_URL + "img/case-studies/common/dribbble-stats-icons.png");
 		this.likeCount = new CountText("0", "center",
 			g);
-		this.likeCount.x = 50 * c.scale;
-		this.likeCount.y = 24 * c.scale;
+		this.likeCount.x = 50 * self.scale;
+		this.likeCount.y = 24 * self.scale;
 		this.viewCount = new CountText("0", "center", g);
-		this.viewCount.x = -50 * c.scale;
-		this.viewCount.y = 24 * c.scale;
+		this.viewCount.x = -50 * self.scale;
+		this.viewCount.y = 24 * self.scale;
 		this.dribbbleLink = new DribbbleLink(this.shot, this.primaryColor, this.ctaColor, this.scale);
-		this.dribbbleLink.x = -123 * c.scale;
+		this.dribbbleLink.x = -123 * self.scale;
 		this.dribbbleLink.y = k;
 		this.addChild(this.likeCount);
 		this.addChild(this.viewCount);
@@ -4691,61 +4892,61 @@ function Icons(a, d, f, g) {
 	};
 	this.mouseDraw = function(a) {};
 	this.countUp = function() {
-		c.countTween && c.countTween.stop();
-		c.count = {
+		self.countTween && self.countTween.stop();
+		self.count = {
 			likes: 0,
 			feedback: 0,
 			views: 0
 		};
-		c.likeCount.text = "0";
-		c.viewCount.text = "0";
-		c.countTween = new Tween(c.count, 800, {
+		self.likeCount.text = "0";
+		self.viewCount.text = "0";
+		self.countTween = new Tween(self.count, 800, {
 			delay: 400,
-			likes: c.likeTotal,
-			feedback: c.feedbackTotal,
-			views: c.viewTotal,
+			likes: self.likeTotal,
+			feedback: self.feedbackTotal,
+			views: self.viewTotal,
 			ease: Ease.easeOut.sine,
 			onUpdate: function() {
-				c.likeCount.text = Math.round(c.count.likes) + "";
-				c.viewCount.text = Math.round(c.count.views) + ""
+				self.likeCount.text = Math.round(self.count.likes) + "";
+				self.viewCount.text = Math.round(self.count.views) + ""
 			}
 		})
 	};
 	this.show = function() {
-		c.showTween &&
-		c.showTween.stop();
-		c.dribbbleLink.show();
-		c.showTween = new Tween(c, 800, {
+		self.showTween &&
+		self.showTween.stop();
+		self.dribbbleLink.show();
+		self.showTween = new Tween(self, 800, {
 			rotation: -90,
 			alpha: 1,
 			iconsY: l,
 			ease: Ease.easeOut.quint,
 			delay: 600,
 			onUpdate: function() {
-				c.likeCount.textAlpha = c.alpha;
-				c.viewCount.textAlpha = c.alpha;
-				c.dribbbleLink.y = k + (h - k) * c.alpha
+				self.likeCount.textAlpha = self.alpha;
+				self.viewCount.textAlpha = self.alpha;
+				self.dribbbleLink.y = k + (h - k) * self.alpha
 			},
 			onComplete: function() {}
 		});
-		c.countUp()
+		self.countUp()
 	};
 	this.hide = function() {
-		c.showTween && c.showTween.stop();
-		c.dribbbleLink.hide();
-		c.showTween = new Tween(c, 800, {
+		self.showTween && self.showTween.stop();
+		self.dribbbleLink.hide();
+		self.showTween = new Tween(self, 800, {
 			alpha: 0,
 			rotation: -180,
 			iconsY: n,
 			ease: Ease.easeOut.quint,
 			onUpdate: function() {
-				c.likeCount.textAlpha = c.alpha;
-				c.viewCount.textAlpha =
-					c.alpha;
-				c.dribbbleLink.y = k + (h - k) * c.alpha
+				self.likeCount.textAlpha = self.alpha;
+				self.viewCount.textAlpha =
+					self.alpha;
+				self.dribbbleLink.y = k + (h - k) * self.alpha
 			},
 			onComplete: function() {
-				c.alpha = 0
+				self.alpha = 0
 			}
 		})
 	};
@@ -4787,7 +4988,7 @@ DribbbleLink.prototype.constructor = DribbbleLink;
 
 function DribbbleLink(a, d, f, g) {
 	Sprite.call(this);
-	var c = this;
+	var self = this;
 	this.scale = g;
 	this.shot = a;
 	this.buttonMode = !0;
@@ -4799,7 +5000,7 @@ function DribbbleLink(a, d, f, g) {
 	this.__construct__ = function() {
 		this.mouseEnabled = !0;
 		this.cta = new Image;
-		this.cta.src = 1 < c.scale ? STATIC_URL + "img/case-studies/common/dribbble-arrow@2x.png" : STATIC_URL + "img/case-studies/common/dribbble-arrow.png"
+		this.cta.src = 1 < self.scale ? STATIC_URL + "img/case-studies/common/dribbble-arrow@2x.png" : STATIC_URL + "img/case-studies/common/dribbble-arrow.png"
 	};
 	this.addListeners = function() {
 		this.addEventListener(MouseEvent.ROLL_OVER, this.rollOver);
@@ -4812,59 +5013,59 @@ function DribbbleLink(a, d, f, g) {
 		this.removeEventListener(MouseEvent.CLICK, this.click)
 	};
 	this.draw = function(a) {
-		a.fillStyle = "rgba(60, 61, 64, " + Math.round(100 * Math.min(c.ctaAlpha / 0.4, 1)) / 100 + ")";
-		a.fillRect(0, 0, 246 * c.scale, 1 * c.scale);
-		a.fillStyle = "rgba(32, 33, 35, " + Math.round(100 * Math.max((c.ctaAlpha - 0.4) / 0.6, 0)) / 100 + ")";
+		a.fillStyle = "rgba(60, 61, 64, " + Math.round(100 * Math.min(self.ctaAlpha / 0.4, 1)) / 100 + ")";
+		a.fillRect(0, 0, 246 * self.scale, 1 * self.scale);
+		a.fillStyle = "rgba(32, 33, 35, " + Math.round(100 * Math.max((self.ctaAlpha - 0.4) / 0.6, 0)) / 100 + ")";
 		a.fillRect(0,
-			1 * c.scale, 246 * c.scale, 54 * c.scale);
+			1 * self.scale, 246 * self.scale, 54 * self.scale);
 		a.save();
-		a.globalAlpha = c.ctaAlpha;
+		a.globalAlpha = self.ctaAlpha;
 		a.drawImage(this.cta, h, k, l, n);
 		a.restore()
 	};
 	this.mouseDraw = function(a) {
-		a.fillStyle = c.mouseString;
+		a.fillStyle = self.mouseString;
 		a.beginPath();
-		a.arc(123 * c.scale, -71 * c.scale, 125 * c.scale, 34.1 * Math.PI / 180, 145.9 * Math.PI / 180);
+		a.arc(123 * self.scale, -71 * self.scale, 125 * self.scale, 34.1 * Math.PI / 180, 145.9 * Math.PI / 180);
 		a.closePath();
 		a.fill()
 	};
 	this.show = function() {
-		c.showTween && c.showTween.stop();
-		c.showTween = new Tween(c, 400, {
+		self.showTween && self.showTween.stop();
+		self.showTween = new Tween(self, 400, {
 			ctaAlpha: 0.4,
 			delay: 300,
 			ease: Ease.easeOut.sine,
 			onComplete: function() {
-				c.addListeners()
+				self.addListeners()
 			}
 		})
 	};
 	this.hide = function() {
-		c.removeListeners();
-		c.showTween &&
-		c.showTween.stop();
-		c.showTween = new Tween(c, 400, {
+		self.removeListeners();
+		self.showTween &&
+		self.showTween.stop();
+		self.showTween = new Tween(self, 400, {
 			ctaAlpha: 0,
 			ease: Ease.easeOut.sine
 		})
 	};
 	this.rollOver = function() {
-		c.showTween && c.showTween.stop();
-		c.showTween = new Tween(c, 400, {
+		self.showTween && self.showTween.stop();
+		self.showTween = new Tween(self, 400, {
 			ctaAlpha: 1,
 			ease: Ease.easeOut.sine
 		})
 	};
 	this.rollOut = function() {
-		c.showTween && c.showTween.stop();
-		c.showTween = new Tween(c, 400, {
+		self.showTween && self.showTween.stop();
+		self.showTween = new Tween(self, 400, {
 			ctaAlpha: 0.4,
 			ease: Ease.easeOut.sine
 		})
 	};
 	this.click = function() {
-		window.open(c.shot.html_url)
+		window.open(self.shot.html_url)
 	};
 	this.toString = function() {
 		return "[Sprite DribbleLink]"
@@ -4876,30 +5077,30 @@ BottomBar.prototype.constructor = BottomBar;
 
 function BottomBar(a, d) {
 	Sprite.call(this);
-	var f = this;
+	var self = this;
 	this.scale = d;
 	this.__construct__ = function(a) {
 		this.color = a;
 		this.rotation = 20;
 		var c = new Image;
-		c.src = 1 < f.scale ? STATIC_URL + "img/case-studies/common/dribbble-stats-cta@2x.png" : STATIC_URL + "img/case-studies/common/dribbble-stats-cta.png";
+		c.src = 1 < self.scale ? STATIC_URL + "img/case-studies/common/dribbble-stats-cta@2x.png" : STATIC_URL + "img/case-studies/common/dribbble-stats-cta.png";
 		this.explore = new Sprite;
 		this.explore.draw = function(a) {
-			a.drawImage(c, 0, 0, 131 * f.scale, 12 * f.scale)
+			a.drawImage(c, 0, 0, 131 * self.scale, 12 * self.scale)
 		};
 		this.addChild(this.explore);
-		this.explore.x = 114 * f.scale;
-		this.explore.y = 17 * f.scale
+		this.explore.x = 114 * self.scale;
+		this.explore.y = 17 * self.scale
 	};
 	this.addListeners = function() {};
 	this.draw =
 		function(a) {
 			a.fillStyle = this.color;
-			a.fillRect(0, 0, 318 * f.scale, 67 * f.scale)
+			a.fillRect(0, 0, 318 * self.scale, 67 * self.scale)
 		};
 	this.mouseDraw = function(a) {
-		a.fillStyle = f.mouseString;
-		a.fillRect(0, 0, 318 * f.scale, 67 * f.scale)
+		a.fillStyle = self.mouseString;
+		a.fillRect(0, 0, 318 * self.scale, 67 * self.scale)
 	};
 	this.show = function() {
 		this.showTween && this.showTween.stop();
@@ -4921,7 +5122,7 @@ function BottomBar(a, d) {
 	this.__construct__(a)
 };
 var TapBio = function(a) {
-	var d = this;
+	var self = this;
 	this.element = a;
 	this.touchStartPoint = {
 		x: 0,
@@ -4929,77 +5130,77 @@ var TapBio = function(a) {
 	};
 	this.isTouchMoving = this.isTapping = !1;
 	this.toggleOn = function() {
-		R.addClass(d.element, "toggled")
+		R.addClass(self.element, "toggled")
 	};
 	this.toggleOff = function() {
-		R.removeClass(d.element, "toggled")
+		R.removeClass(self.element, "toggled")
 	};
 	(function() {
-		d.element.addEventListener("touchstart", function(a) {
-			d.isTouchMoving = !0;
-			d.isTapping = !0;
-			d.touchStartPoint.x = a.touches[0].pageX;
-			d.touchStartPoint.y = a.touches[0].pageY;
-			R.addClass(d.element.parentNode, "no-hover")
+		self.element.addEventListener("touchstart", function(a) {
+			self.isTouchMoving = !0;
+			self.isTapping = !0;
+			self.touchStartPoint.x = a.touches[0].pageX;
+			self.touchStartPoint.y = a.touches[0].pageY;
+			R.addClass(self.element.parentNode, "no-hover")
 		}, !1);
-		d.element.addEventListener("touchmove",
+		self.element.addEventListener("touchmove",
 			function(a) {
-				d.isTouchMoving = !0;
-				5 < Math.abs(a.touches[0].pageX - d.touchStartPoint.x) && (d.isTapping = !1);
-				5 < Math.abs(a.touches[0].pageY - d.touchStartPoint.y) && (d.isTapping = !1)
+				self.isTouchMoving = !0;
+				5 < Math.abs(a.touches[0].pageX - self.touchStartPoint.x) && (self.isTapping = !1);
+				5 < Math.abs(a.touches[0].pageY - self.touchStartPoint.y) && (self.isTapping = !1)
 			}, !1);
-		d.element.addEventListener("touchend", function(a) {
-			d.isTapping && (R.hasClass(d.element, "toggled") ? (R.removeClass(d.element, "toggled"), GlobalEvents.dispatch({
+		self.element.addEventListener("touchend", function(a) {
+			self.isTapping && (R.hasClass(self.element, "toggled") ? (R.removeClass(self.element, "toggled"), GlobalEvents.dispatch({
 				name: "bio_toggled_off",
-				bio: d
-			})) : (R.addClass(d.element, "toggled"), GlobalEvents.dispatch({
+				bio: self
+			})) : (R.addClass(self.element, "toggled"), GlobalEvents.dispatch({
 				name: "bio_toggled_on",
-				bio: d
+				bio: self
 			})));
-			d.isTapping = !1
+			self.isTapping = !1
 		}, !1);
-		d.element.addEventListener("mousemove",
+		self.element.addEventListener("mousemove",
 			function(a) {
-				d.isTouchMoving || R.removeClass(d.element.parentNode, "no-hover");
-				d.isTouchMoving = !1
+				self.isTouchMoving || R.removeClass(self.element.parentNode, "no-hover");
+				self.isTouchMoving = !1
 			}, !1)
 	})()
 };
 var TapBios = function(a) {
-	var d = this;
+	var self = this;
 	this.elements = a;
 	this.currentBio = null;
 	(function() {
-		for (var a = d.elements.length - 1; 0 <= a; a--) new TapBio(d.elements[a]);
+		for (var a = self.elements.length - 1; 0 <= a; a--) new TapBio(self.elements[a]);
 		GlobalEvents.addListener("bio_toggled_on", function(a) {
-			d.currentBio && d.currentBio != a.bio && d.currentBio.toggleOff();
-			d.currentBio = a.bio
+			self.currentBio && self.currentBio != a.bio && self.currentBio.toggleOff();
+			self.currentBio = a.bio
 		});
 		GlobalEvents.addListener("bio_toggled_off", function(a) {
-			d.currentBio = null
+			self.currentBio = null
 		})
 	})()
 };
 var TapNonHoverable = function(a) {
-	var d = this;
+	var self = this;
 	this.element = a;
 	this.isTouchMoving = !1;
 	(function() {
-		d.element.addEventListener("touchstart", function(a) {
-			d.isTouchMoving = !0;
-			R.addClass(d.element.parentNode, "no-hover")
+		self.element.addEventListener("touchstart", function(a) {
+			self.isTouchMoving = !0;
+			R.addClass(self.element.parentNode, "no-hover")
 		}, !1);
-		d.element.addEventListener("touchmove", function(a) {
-			d.isTouchMoving = !0
+		self.element.addEventListener("touchmove", function(a) {
+			self.isTouchMoving = !0
 		}, !1);
-		d.element.addEventListener("mousemove", function(a) {
-			d.isTouchMoving || R.removeClass(d.element.parentNode, "no-hover");
-			d.isTouchMoving = !1
+		self.element.addEventListener("mousemove", function(a) {
+			self.isTouchMoving || R.removeClass(self.element.parentNode, "no-hover");
+			self.isTouchMoving = !1
 		}, !1)
 	})()
 };
 R.Slideshow = function() {
-	var a = this;
+	var self = this;
 	this.html = {};
 	this.dragHelper = null;
 	this.animating = !1;
@@ -5049,16 +5250,16 @@ R.Slideshow = function() {
 	this.onDrag = function(c,
 	                       g, h, k, n, t) {
 		d = c;
-		(!l && 5 < c || -5 > c) && a.hideCaption();
-		k = f - c / a.html.screenshotsDiv.clientWidth;
-		c = 1 - 1 / a.html.screenshotDivs.length;
-		g = 1 - 1 / a.html.screenshotDivs.length / 3;
-		h = -1 / a.html.screenshotDivs.length / 1.5;
-		k > c ? (k = (k - c) * a.html.screenshotsDiv.clientWidth, k = Math.min(k / (window.innerWidth / 2), 1), k = c + (g - c) * k) : 0 > k && (k = (0 - k) * a.html.screenshotsDiv.clientWidth, k = Math.min(k / (window.innerWidth / 2), 1), k *= h);
-		R.setTransform(a.html.screenshotsDiv, "translate3d(" + -100 * k + "%,0,0)");
-		R.setTransform(a.html.bgScreenshotsDiv, "translate3d(" +
+		(!l && 5 < c || -5 > c) && self.hideCaption();
+		k = f - c / self.html.screenshotsDiv.clientWidth;
+		c = 1 - 1 / self.html.screenshotDivs.length;
+		g = 1 - 1 / self.html.screenshotDivs.length / 3;
+		h = -1 / self.html.screenshotDivs.length / 1.5;
+		k > c ? (k = (k - c) * self.html.screenshotsDiv.clientWidth, k = Math.min(k / (window.innerWidth / 2), 1), k = c + (g - c) * k) : 0 > k && (k = (0 - k) * self.html.screenshotsDiv.clientWidth, k = Math.min(k / (window.innerWidth / 2), 1), k *= h);
+		R.setTransform(self.html.screenshotsDiv, "translate3d(" + -100 * k + "%,0,0)");
+		R.setTransform(self.html.bgScreenshotsDiv, "translate3d(" +
 			-100 * k + "%,0,0)");
-		R.setTransform(a.html.paginationBarContentDiv, "translate3d(" + 100 * k + "%,0,0)");
+		R.setTransform(self.html.paginationBarContentDiv, "translate3d(" + 100 * k + "%,0,0)");
 		return !1
 	};
 	this.onDragComplete = function(c, h) {
@@ -5071,14 +5272,14 @@ R.Slideshow = function() {
 			}
 			g = l = Math.max(Math.min(l, k - 1), 0);
 			k = g / k;
-			f - d / a.html.screenshotsDiv.clientWidth != k && (R.setTransition(a.html.screenshotsDiv, "transform .2s ease-out"), R.setTransform(a.html.screenshotsDiv, "translate3d(" +
-				-100 * k + "%,0,0)"), R.setTransition(a.html.bgScreenshotsDiv, "transform .2s ease-out"), R.setTransform(a.html.bgScreenshotsDiv, "translate3d(" + -100 * k + "%,0,0)"), R.setTransition(a.html.paginationBarContentDiv, "transform .2s ease-out"), R.setTransform(a.html.paginationBarContentDiv, "translate3d(" + 100 * k + "%,0,0)"), this.animating = !0, R.onTransitionEnd(a.html.paginationBarContentDiv, function() {
-				a.animating = !1
+			f - d / self.html.screenshotsDiv.clientWidth != k && (R.setTransition(self.html.screenshotsDiv, "transform .2s ease-out"), R.setTransform(self.html.screenshotsDiv, "translate3d(" +
+				-100 * k + "%,0,0)"), R.setTransition(self.html.bgScreenshotsDiv, "transform .2s ease-out"), R.setTransform(self.html.bgScreenshotsDiv, "translate3d(" + -100 * k + "%,0,0)"), R.setTransition(self.html.paginationBarContentDiv, "transform .2s ease-out"), R.setTransform(self.html.paginationBarContentDiv, "translate3d(" + 100 * k + "%,0,0)"), this.animating = !0, R.onTransitionEnd(self.html.paginationBarContentDiv, function() {
+				self.animating = !1
 			}));
-			a.hideCaption(function() {
-				a.html.slideshowCaptionContentDiv.innerHTML = a.html.screenshotCaptionDivs[g].innerHTML;
-				a.html.slideshowCaptionContentDiv.querySelector(".caption-text p").appendChild(a.html.slideshowCaptionContinueSpan);
-				a.showCaption()
+			self.hideCaption(function() {
+				self.html.slideshowCaptionContentDiv.innerHTML = self.html.screenshotCaptionDivs[g].innerHTML;
+				self.html.slideshowCaptionContentDiv.querySelector(".caption-text p").appendChild(self.html.slideshowCaptionContinueSpan);
+				self.showCaption()
 			});
 			f = k
 		}
@@ -5091,10 +5292,10 @@ R.Slideshow = function() {
 	};
 	this.addListeners = function() {
 		this.html.containerDiv[R.touch ? "ontouchstart" : "onmousedown"] = function(c) {
-			a.dragHelper.start(c);
-			a.dragHelper.onDrag = void 0;
-			a.dragHelper.onComplete = void 0;
-			a.dragHelper.onIntentClear = a.dragIntentClear;
+			self.dragHelper.start(c);
+			self.dragHelper.onDrag = void 0;
+			self.dragHelper.onComplete = void 0;
+			self.dragHelper.onIntentClear = self.dragIntentClear;
 			c.stopPropagation()
 		};
 		this.html.slideshowCaptionDiv.onclick =
@@ -5109,37 +5310,37 @@ R.Slideshow = function() {
 	this.showCaption = function(d) {
 		c = void 0;
 		l = k = !1;
-		a.html.slideshowCaptionDiv.style.opacity = "1"
+		self.html.slideshowCaptionDiv.style.opacity = "1"
 	};
 	this.hideCaption = function(d) {
-		l ? d && d() : (c = d, k || (k = !0, R.setTransition(a.html.slideshowCaptionDiv,
-			"opacity .2s linear"), a.html.slideshowCaptionDiv.style.opacity = 0, R.onTransitionEnd(a.html.slideshowCaptionDiv, function() {
+		l ? d && d() : (c = d, k || (k = !0, R.setTransition(self.html.slideshowCaptionDiv,
+			"opacity .2s linear"), self.html.slideshowCaptionDiv.style.opacity = 0, R.onTransitionEnd(self.html.slideshowCaptionDiv, function() {
 			k = !1;
 			l = !0;
 			h = !1;
-			R.setTransition(a.html.slideshowCaptionInnerDiv, "");
-			R.setTransform(a.html.slideshowCaptionInnerDiv, "");
-			n || (R.setTransition(a.html.slideshowCaptionContinueSpan, ""), a.html.slideshowCaptionContinueSpan.style.display = "block", a.html.slideshowCaptionContinueSpan.style.opacity = "1");
+			R.setTransition(self.html.slideshowCaptionInnerDiv, "");
+			R.setTransform(self.html.slideshowCaptionInnerDiv, "");
+			n || (R.setTransition(self.html.slideshowCaptionContinueSpan, ""), self.html.slideshowCaptionContinueSpan.style.display = "block", self.html.slideshowCaptionContinueSpan.style.opacity = "1");
 			c && (c(), c = void 0)
 		})))
 	};
 	this.expandCaption = function() {
-		var c = a.html.slideshowCaptionContentDiv.querySelector(".caption-text");
-		a.html.slideshowCaptionContentDiv.querySelector(".caption-text-content");
+		var c = self.html.slideshowCaptionContentDiv.querySelector(".caption-text");
+		self.html.slideshowCaptionContentDiv.querySelector(".caption-text-content");
 		c = c.scrollHeight - c.clientHeight;
 		R.setTransition(this.html.slideshowCaptionInnerDiv, "transform .25s ease-out");
 		R.setTransform(this.html.slideshowCaptionInnerDiv, "translate3d(0," + -c + "px,0)");
-		a.html.slideshowControlsDiv.style.zIndex = "1";
-		R.setTransition(a.html.slideshowCaptionContinueSpan, "");
-		a.html.slideshowCaptionContinueSpan.style.display = "none";
-		a.html.slideshowCaptionContinueSpan.style.opacity = "0"
+		self.html.slideshowControlsDiv.style.zIndex = "1";
+		R.setTransition(self.html.slideshowCaptionContinueSpan, "");
+		self.html.slideshowCaptionContinueSpan.style.display = "none";
+		self.html.slideshowCaptionContinueSpan.style.opacity = "0"
 	};
 	this.collapseCaption = function() {
 		R.setTransition(this.html.slideshowCaptionInnerDiv,
 			"transform .25s ease-out");
 		R.setTransform(this.html.slideshowCaptionInnerDiv, "translate3d(0,0,0)");
 		R.onTransitionEnd(this.html.slideshowCaptionInnerDiv, function() {
-			h || (a.html.slideshowCaptionContinueSpan.style.display = "", R.setTransition(a.html.slideshowCaptionContinueSpan, "opacity .15s linear"), a.html.slideshowCaptionContinueSpan.style.opacity = "1", a.html.slideshowControlsDiv.style.zIndex = "")
+			h || (self.html.slideshowCaptionContinueSpan.style.display = "", R.setTransition(self.html.slideshowCaptionContinueSpan, "opacity .15s linear"), self.html.slideshowCaptionContinueSpan.style.opacity = "1", self.html.slideshowControlsDiv.style.zIndex = "")
 		})
 	};
 	this.captionClick = function(a) {
@@ -5153,8 +5354,8 @@ R.Slideshow = function() {
 			}
 		};
 	this.dragIntentClear = function(c) {
-		a.animating || (a.stopVideoPlayers(), c == DragHelper.DRAG_DIRECTION_X ? (R.setTransition(a.html.screenshotsDiv, ""), R.setTransition(a.html.bgScreenshotsDiv, ""), R.setTransition(a.html.paginationBarContentDiv, ""), a.dragHelper.onDrag = a.onDrag.bind(a), a.dragHelper.onComplete = a.onDragComplete.bind(a), a.dragHelper.onIntentClear = void 0) : (a.dragHelper.onDrag = void 0, a.dragHelper.onComplete =
-			void 0, a.dragHelper.onIntentClear = void 0, a.dragHelper.stop()))
+		self.animating || (self.stopVideoPlayers(), c == DragHelper.DRAG_DIRECTION_X ? (R.setTransition(self.html.screenshotsDiv, ""), R.setTransition(self.html.bgScreenshotsDiv, ""), R.setTransition(self.html.paginationBarContentDiv, ""), self.dragHelper.onDrag = self.onDrag.bind(self), self.dragHelper.onComplete = self.onDragComplete.bind(self), self.dragHelper.onIntentClear = void 0) : (self.dragHelper.onDrag = void 0, self.dragHelper.onComplete =
+			void 0, self.dragHelper.onIntentClear = void 0, self.dragHelper.stop()))
 	};
 	this.onResize = function() {
 		768 > window.innerWidth && n ? (n = !1, this.reset()) : 768 < window.innerWidth && !n && (n = !0, this.reset())
@@ -5162,14 +5363,14 @@ R.Slideshow = function() {
 	this.reset = function() {
 		h = l = k = !1;
 		c = void 0;
-		a.html.slideshowCaptionContinueSpan.style.display = "";
-		a.html.slideshowCaptionContinueSpan.style.opacity = "1";
+		self.html.slideshowCaptionContinueSpan.style.display = "";
+		self.html.slideshowCaptionContinueSpan.style.opacity = "1";
 		R.setTransition(this.html.slideshowCaptionInnerDiv, "");
 		R.setTransform(this.html.slideshowCaptionInnerDiv, "")
 	}
 };
 R.VideoPlayer = function() {
-	var a = this;
+	var self = this;
 	this.html = {};
 	this.loaded = this.loading = this.playing = !1;
 	this.init = function(a, f) {
@@ -5197,7 +5398,7 @@ R.VideoPlayer = function() {
 		return !1
 	};
 	this.videoEnded = function(d) {
-		a.stop()
+		self.stop()
 	};
 	this.loadVideo = function(a) {
 		this.html.videoElement.canPlayType("video/mp4") || (this.videoUrl = this.videoUrl.replace(/\.mov$/, ".ogg"));
@@ -5220,13 +5421,13 @@ R.VideoPlayer = function() {
 		this.playing = !1
 	};
 	this.play = function() {
-		this.playing || (R.addClass(a.html.overlayDiv, "loading"), this.loadVideo(function() {
-			R.removeClass(a.html.overlayDiv, "loading");
-			R.addClass(a.html.overlayDiv, "playing");
-			a.html.containerDiv.appendChild(a.html.videoElement);
-			a.html.videoImg.style.display = "none";
-			a.html.videoElement.play();
-			a.playing = !0
+		this.playing || (R.addClass(self.html.overlayDiv, "loading"), this.loadVideo(function() {
+			R.removeClass(self.html.overlayDiv, "loading");
+			R.addClass(self.html.overlayDiv, "playing");
+			self.html.containerDiv.appendChild(self.html.videoElement);
+			self.html.videoImg.style.display = "none";
+			self.html.videoElement.play();
+			self.playing = !0
 		}))
 	};
 	this.toggle = function() {
@@ -5234,7 +5435,7 @@ R.VideoPlayer = function() {
 	}
 };
 R.DeviceSlider = function() {
-	var a = this;
+	var self = this;
 	this.html = {};
 	this.dragHelper = null;
 	this.animating = !1;
@@ -5283,10 +5484,10 @@ R.DeviceSlider = function() {
 			"none"
 	};
 	this.onDrag = function(c, g, l, n, p, r) {
-		c = f + c / a.html.deviceGroupDiv.offsetWidth;
-		g = R.normalize(c, -a.rightBoundP, a.leftBoundP, 1 - a.handleWidthP, 0);
-		R.setTransform(a.html.deviceGroupDiv, "translate3d(" + 100 * c + "%,0,0)");
-		R.setTransform(a.html.paginationBarContentDiv, "translate3d(" + 100 * g + "%,0,0)");
+		c = f + c / self.html.deviceGroupDiv.offsetWidth;
+		g = R.normalize(c, -self.rightBoundP, self.leftBoundP, 1 - self.handleWidthP, 0);
+		R.setTransform(self.html.deviceGroupDiv, "translate3d(" + 100 * c + "%,0,0)");
+		R.setTransform(self.html.paginationBarContentDiv, "translate3d(" + 100 * g + "%,0,0)");
 		d = c;
 		return !1
 	};
@@ -5304,9 +5505,9 @@ R.DeviceSlider = function() {
 				l = R.normalize(n, 1, 0, -this.rightBoundP, this.leftBoundP),
 				n = R.normalize(n, 1, 0, 1 - this.handleWidthP, 0);
 			d != l && (R.setTransition(this.html.deviceGroupDiv, "transform .2s ease-out"), R.setTransform(this.html.deviceGroupDiv, "translate3d(" + 100 * l + "%,0,0)"), R.setTransition(this.html.paginationBarContentDiv, "transform .2s ease-out"), R.setTransform(this.html.paginationBarContentDiv, "translate3d(" + 100 * n + "%,0,0)"), this.animating = !0, R.onTransitionEnd(this.html.paginationBarContentDiv, function() {
-				R.setTransition(a.html.deviceGroupDiv, "");
-				R.setTransition(a.html.paginationBarContentDiv, "");
-				a.animating = !1
+				R.setTransition(self.html.deviceGroupDiv, "");
+				R.setTransition(self.html.paginationBarContentDiv, "");
+				self.animating = !1
 			}));
 			f = l
 		}
@@ -5315,10 +5516,10 @@ R.DeviceSlider = function() {
 		this.html.containerDiv[R.touch ? "ontouchstart" : "onmousedown"] = function(d) {
 			if (!c) return !0;
 			d.stopPropagation();
-			a.dragHelper.start(d);
-			a.dragHelper.onDrag = void 0;
-			a.dragHelper.onComplete = void 0;
-			a.dragHelper.onIntentClear = a.dragIntentClear
+			self.dragHelper.start(d);
+			self.dragHelper.onDrag = void 0;
+			self.dragHelper.onComplete = void 0;
+			self.dragHelper.onIntentClear = self.dragIntentClear
 		};
 		GlobalEvents.addListener(GlobalEvent.WINDOW_RESIZE, this.onResize.bind(this))
 	};
@@ -5327,8 +5528,8 @@ R.DeviceSlider = function() {
 		GlobalEvents.removeListener(GlobalEvent.WINDOW_RESIZE, this.onResize.bind(this))
 	};
 	this.dragIntentClear = function(c) {
-		a.animating || (c == DragHelper.DRAG_DIRECTION_X ? (R.setTransition(a.html.deviceGroupDiv, ""), R.setTransition(a.html.paginationBarContentDiv, ""), a.dragHelper.onDrag = a.onDrag.bind(a), a.dragHelper.onComplete = a.onDragComplete.bind(a), a.dragHelper.onIntentClear = void 0) : (a.dragHelper.onDrag = void 0,
-			a.dragHelper.onComplete = void 0, a.dragHelper.onIntentClear = void 0, a.dragHelper.stop()))
+		self.animating || (c == DragHelper.DRAG_DIRECTION_X ? (R.setTransition(self.html.deviceGroupDiv, ""), R.setTransition(self.html.paginationBarContentDiv, ""), self.dragHelper.onDrag = self.onDrag.bind(self), self.dragHelper.onComplete = self.onDragComplete.bind(self), self.dragHelper.onIntentClear = void 0) : (self.dragHelper.onDrag = void 0,
+			self.dragHelper.onComplete = void 0, self.dragHelper.onIntentClear = void 0, self.dragHelper.stop()))
 	};
 	this.onResize = function() {
 		!c && this.html.containerDiv.offsetWidth < this.html.deviceGroupContentDiv.offsetWidth ? (this.enableSlideshow(), c = !0) : c && this.html.containerDiv.offsetWidth > this.html.deviceGroupContentDiv.offsetWidth ? (this.disableSlideshow(), c = !1) : c && (this.calculateBounds(), this.updateElements())
@@ -5349,15 +5550,15 @@ R.DeviceSlider = function() {
 		var c = g / (this.html.deviceDivs.length - 1),
 			d = R.normalize(c, 1, 0, -this.rightBoundP, this.leftBoundP),
 			c = R.normalize(c, 1, 0, 1 - this.handleWidthP, 0);
-		R.setTransition(a.html.deviceGroupDiv, "");
-		R.setTransform(a.html.deviceGroupDiv, "translate3d(" + 100 * d + "%,0,0)");
-		R.setTransition(a.html.paginationBarContentDiv, "");
-		R.setTransform(a.html.paginationBarContentDiv, "translate3d(" + 100 * c + "%,0,0)");
+		R.setTransition(self.html.deviceGroupDiv, "");
+		R.setTransform(self.html.deviceGroupDiv, "translate3d(" + 100 * d + "%,0,0)");
+		R.setTransition(self.html.paginationBarContentDiv, "");
+		R.setTransform(self.html.paginationBarContentDiv, "translate3d(" + 100 * c + "%,0,0)");
 		f = d
 	}
 };
 R.SimpleSlider = function() {
-	var a = this;
+	var self = this;
 	this.html = {};
 	this.dragHelper = null;
 	this.animating = !1;
@@ -5393,17 +5594,17 @@ R.SimpleSlider = function() {
 	};
 	this.updateScrollIndicator = function() {
 		var d = this.html.stampImagesOverflowDiv.offsetWidth,
-			d = R.normalize(this.html.stampImagesDiv.scrollLeft / d, 0, (d - this.html.stampImagesDiv.offsetWidth) / d, 0, 1 - a.handleWidthP);
+			d = R.normalize(this.html.stampImagesDiv.scrollLeft / d, 0, (d - this.html.stampImagesDiv.offsetWidth) / d, 0, 1 - self.handleWidthP);
 		R.setTransform(this.html.paginationBarContentDiv, "translate3d(" + 100 * d + "%,0,0)")
 	};
 	this.addListeners = function() {
 		R.touch && (this.html.stampImagesDiv.onscroll = function() {
-			a.updateScrollIndicator()
+			self.updateScrollIndicator()
 		});
 		this.html.containerDiv[R.touch ?
 			"ontouchstart" : "onmousedown"] = function(d) {
 			d.stopPropagation();
-			R.touch || a.animating || (a.dragHelper.start(d), a.dragHelper.onDrag = a.onDrag, a.dragHelper.onComplete = a.onDragComplete)
+			R.touch || self.animating || (self.dragHelper.start(d), self.dragHelper.onDrag = self.onDrag, self.dragHelper.onComplete = self.onDragComplete)
 		}
 	};
 	this.removeListeners = function() {
@@ -5411,23 +5612,23 @@ R.SimpleSlider = function() {
 		this.html.containerDiv[R.touch ? "ontouchstart" : "onmousedown"] = void 0
 	};
 	this.onDrag = function(g, c, h, k, l, n) {
-		g = f + g / a.html.stampImagesOverflowDiv.offsetWidth;
-		c = R.normalize(g, a.leftBoundP, a.rightBoundP, 0, 1 - a.handleWidthP);
-		R.setTransform(a.html.stampImagesOverflowDiv,
+		g = f + g / self.html.stampImagesOverflowDiv.offsetWidth;
+		c = R.normalize(g, self.leftBoundP, self.rightBoundP, 0, 1 - self.handleWidthP);
+		R.setTransform(self.html.stampImagesOverflowDiv,
 			"translate3d(" + 100 * g + "%,0,0)");
-		R.setTransform(a.html.paginationBarContentDiv, "translate3d(" + 100 * -c + "%,0,0)");
+		R.setTransform(self.html.paginationBarContentDiv, "translate3d(" + 100 * -c + "%,0,0)");
 		d = g;
 		return !1
 	};
 	this.onDragComplete = function(g, c) {
 		if (g != DragHelper.OUTCOME_CLICK) {
 			var h = !1;
-			d > a.leftBoundP ? (d = a.leftBoundP, h = !0) : d < -a.rightBoundP && (d = -a.rightBoundP, h = !0);
-			h && (R.setTransition(a.html.stampImagesOverflowDiv, "transform .2s ease-out"), R.setTransform(a.html.stampImagesOverflowDiv, "translate3d(" + 100 * d + "%,0,0)"), h = R.normalize(d, a.leftBoundP, a.rightBoundP, 0, 1 - a.handleWidthP), R.setTransition(a.html.paginationBarContentDiv,
-				"transform .2s ease-out"), R.setTransform(a.html.paginationBarContentDiv, "translate3d(" + 100 * -h + "%,0,0)"), a.animating = !0, R.onTransitionEnd(a.html.paginationBarContentDiv, function() {
-				R.setTransition(a.html.stampImagesOverflowDiv, "");
-				R.setTransition(a.html.paginationBarContentDiv, "");
-				a.animating = !1
+			d > self.leftBoundP ? (d = self.leftBoundP, h = !0) : d < -self.rightBoundP && (d = -self.rightBoundP, h = !0);
+			h && (R.setTransition(self.html.stampImagesOverflowDiv, "transform .2s ease-out"), R.setTransform(self.html.stampImagesOverflowDiv, "translate3d(" + 100 * d + "%,0,0)"), h = R.normalize(d, self.leftBoundP, self.rightBoundP, 0, 1 - self.handleWidthP), R.setTransition(self.html.paginationBarContentDiv,
+				"transform .2s ease-out"), R.setTransform(self.html.paginationBarContentDiv, "translate3d(" + 100 * -h + "%,0,0)"), self.animating = !0, R.onTransitionEnd(self.html.paginationBarContentDiv, function() {
+				R.setTransition(self.html.stampImagesOverflowDiv, "");
+				R.setTransition(self.html.paginationBarContentDiv, "");
+				self.animating = !1
 			}));
 			f = d
 		}

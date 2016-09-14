@@ -2513,28 +2513,65 @@ var WeightOption = {
 		NEUTRAL: 0,
 		WEAKER: -1
 	},
-	WeightedRandom = function(a, d, f) {
-		var g = this;
+	WeightedRandom = function(power, rightModifier, leftModifier) {
+		var self = this;
 		this.power = 1;
 		this.rightModifier = this.leftModifier = WeightOption.NEUTRAL;
 		this.random = function() {
 			var a = Math.random();
-			return g.weightedValue(a)
+			return self.weightedValue(a)
 		};
 		this.weightedValue = function(a) {
-			if (g.leftModifier == WeightOption.NEUTRAL) return g.rightModifier == WeightOption.NEUTRAL ? a : g.rightModifier == WeightOption.STRONGER ? 1 - Math.pow(1 - a, g.power) : 1 - Math.pow(1 - a, 1 / g.power);
-			if (g.rightModifier == WeightOption.NEUTRAL) return g.leftModifier ==
-			WeightOption.STRONGER ? Math.pow(a, g.power) : Math.pow(a, 1 / g.power);
-			if (0.5 > a) return a *= 2, g.leftModifier == WeightOption.STRONGER ? Math.pow(a, g.power) / 2 : Math.pow(a, 1 / g.power) / 2;
+
+			if (self.leftModifier == WeightOption.NEUTRAL) {
+				if (self.rightModifier == WeightOption.NEUTRAL) {
+					return a;
+				} else {
+					if (self.rightModifier == WeightOption.STRONGER) {
+						return 1 - Math.pow(1 - a, self.power);
+					} else {
+						return 1 - Math.pow(1 - a, 1 / self.power);
+					}
+				}
+			}
+
+			if (self.rightModifier == WeightOption.NEUTRAL) {
+				if (self.leftModifier == WeightOption.STRONGER){
+					return Math.pow(a, self.power);
+				} else {
+					return Math.pow(a, 1 / self.power);
+				}
+			}
+
+			if (0.5 > a) {
+				a *= 2;
+				if (self.leftModifier == WeightOption.STRONGER) {
+					return  Math.pow(a, self.power) / 2;
+				} else {
+					return Math.pow(a, 1 / self.power) / 2;
+				}
+			}
 			a = 2 * (a - 0.5);
 			a = 1 - a;
-			return g.rightModifier == WeightOption.STRONGER ? (1 - Math.pow(a, g.power)) / 2 + 0.5 : (1 - Math.pow(a, 1 / g.power)) / 2 + 0.5
+
+			if (self.rightModifier == WeightOption.STRONGER) {
+				return (1 - Math.pow(a, self.power)) / 2 + 0.5;
+			} else {
+				return (1 - Math.pow(a, 1 / self.power)) / 2 + 0.5;
+			}
+
 		};
-		(function(a, f, d) {
-			a && (g.power = a);
-			f && (g.leftModifier = f);
-			d && (g.rightModifier = d)
-		})(a, d, f)
+		(function(power, rightModifier, leftModifier) {
+			if(power) {
+				self.power = power;
+			}
+			if (rightModifier) {
+				self.leftModifier = rightModifier;
+			}
+			if (leftModifier) {
+				self.rightModifier = leftModifier;
+			}
+		})(power, rightModifier, leftModifier)
 	};
 var ColorMode = {
 		RGB: 0,
@@ -2955,25 +2992,25 @@ var Point3D = function() {
 	this.z = this.y = this.x = 0
 };
 var Polygon3D = function() {
-	var a = this,
-		d = 4;
+	var self = this,
+		verticesLength = 4;
 	this.color = null;
 	this.__construct__ = function() {
-		a.points = [new Point3D, new Point3D, new Point3D, new Point3D]
+		self.points = [new Point3D, new Point3D, new Point3D, new Point3D]
 	};
-	this.setVerticesLength = function(f) {
-		for (; d < f;) a.points.push(new Point3D), d++;
-		for (; d > f;) a.points.pop(), d--
+	this.setVerticesLength = function(length) {
+		for (; verticesLength < length;) self.points.push(new Point3D), verticesLength++;
+		for (; verticesLength > length;) self.points.pop(), verticesLength--
 	};
 	this.getVerticesLength = function() {
-		return d
+		return verticesLength
 	};
 	this.__construct__()
 };
 var Flat3dSetup = function(canvasDom, scale) {
 	var self = this,
-		g = [],
-		canvas, context2d, canvasWidth, canvasHeight, n = 0;
+		polygons = [],
+		canvas, context2d, canvasWidth, canvasHeight, maxDepth = 0;
 	this.yOffset = 0;
 	this.scale = 1;
 	this.shouldClear = !0;
@@ -2998,22 +3035,22 @@ var Flat3dSetup = function(canvasDom, scale) {
 		//Starting Drawing position?
 		new Point2D(canvasWidth / 2, 0);
 	};
-	this.addPolygonAtDepth = function(polygon, flag) {
+	this.addPolygonAtDepth = function(polygon, depth) {
 		if (polygon) {
-			if (!flag) {
-				flag = 0
+			if (!depth) {
+				depth = 0
 			}
-			n = Math.max(n, flag);
-			if (!g[flag]) {
-				g[flag] = [];
+			maxDepth = Math.max(maxDepth, depth);
+			if (!polygons[depth]) {
+				polygons[depth] = [];
 			}
-			g[flag].push(polygon)
+			polygons[depth].push(polygon)
 		}
 	};
 	this.removePolygon = function(a) {
-		for (var c = n; 0 <= c; c--)
-			if (g[c]) {
-				var f = g[c].indexOf(a); - 1 != f && g[c].splice(f, 1)
+		for (var c = maxDepth; 0 <= c; c--)
+			if (polygons[c]) {
+				var f = polygons[c].indexOf(a); - 1 != f && polygons[c].splice(f, 1)
 			}
 	};
 	this.clear = function() {
@@ -3023,10 +3060,10 @@ var Flat3dSetup = function(canvasDom, scale) {
 	};
 	this.draw = function() {
 		self.shouldClear && context2d.clearRect(0, 0, canvasWidth, canvasHeight);
-		for (var i = n; i >= 0; i--) {
-			if (g[i]) {
-				for (var c = 0; c < g[i].length; c++) {
-					var d = g[i][c],
+		for (var i = maxDepth; i >= 0; i--) {
+			if (polygons[i]) {
+				for (var c = 0; c < polygons[i].length; c++) {
+					var d = polygons[i][c],
 						s = d.points;
 					context2d.fillStyle = d.color.getRGBA();
 					context2d.beginPath();
@@ -3478,7 +3515,7 @@ var segmentMinimumLength = 300,
 		var self = this;
 		self.previousSegment = null;
 		self.nextSegment = null;
-		self.backface = !1;
+		self.backface = false;
 		self.startPoint = {};
 		self.endPoint = {};
 		self.width = 136;
@@ -3492,7 +3529,7 @@ var segmentMinimumLength = 300,
 		self.secondaryColor = color2;
 		self.color = color1;
 		var h = 20,
-			k = 1;
+			lengthMultiplier = 1;
 		this.move = function(a) {
 			self.startPoint.x -= a;
 			self.endPoint.x -= a
@@ -3588,9 +3625,9 @@ var segmentMinimumLength = 300,
 			}
 			return 0
 		};
-		self.setLengthMultiplier = function(a) {
-			newMultiplier = a / k;
-			k = a;
+		self.setLengthMultiplier = function(val) {
+			var newMultiplier = val / lengthMultiplier;
+			lengthMultiplier = val;
 			self.segmentLength *= newMultiplier
 		};
 		var getRandomAngle = function(minDegree, maxDegree, allowedDirection) {
@@ -3711,19 +3748,19 @@ var segmentMinimumLength = 300,
 				self.primaryAngle = getRandomAngle(-130, 130, allowedDirection);
 			}
 
-			var allowedAngle = Math.random();
+			var allowedRatio = Math.random();
 
-			if (self.previousSegment && 90 < Math.abs(self.previousSegment.primaryAngle) && 90 > Math.abs(self.primaryAngle)) {
-				allowedAngle = 0.6 + 0.4 * allowedAngle;
-			} else if (self.nextSegment && 90 < Math.abs(self.nextSegment.primaryAngle) && 90 > Math.abs(self.primaryAngle)) {
-				allowedAngle = 0.6 + 0.4 * allowedAngle;
-			} else if (-90 < self.primaryAngle && 90 > self.primaryAngle ) {
-				allowedAngle = 0.3 + 0.7 * allowedAngle;
+			if (self.previousSegment && Math.abs(self.previousSegment.primaryAngle) > 90 && Math.abs(self.primaryAngle) < 90) {
+				allowedRatio = 0.6 + 0.4 * allowedRatio;
+			} else if (self.nextSegment && Math.abs(self.nextSegment.primaryAngle) > 90 && Math.abs(self.primaryAngle) < 90) {
+				allowedRatio = 0.6 + 0.4 * allowedRatio;
+			} else if (self.primaryAngle > -90 && self.primaryAngle < 90) {
+				allowedRatio = 0.3 + 0.7 * allowedRatio;
 			} else {
-				allowedAngle = 0.3 * allowedAngle;
+				allowedRatio = 0.3 * allowedRatio;
 			}
 
-			self.segmentLength = segmentMinimumLength + allowedAngle * (segmentMaximumLength - segmentMinimumLength);
+			self.segmentLength = segmentMinimumLength + allowedRatio * (segmentMaximumLength - segmentMinimumLength);
 
 			if (self.nextSegment) {
 				self.startPoint.x = self.endPoint.x - self.segmentLength * Math.cos(self.primaryAngle * degToRad);

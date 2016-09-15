@@ -487,10 +487,10 @@ var R = {
 		if (window.devicePixelRatio) return window.devicePixelRatio;
 		if (window.matchMedia && window.matchMedia("(-moz-device-pixel-ratio: 2.0)").matches) return 2
 	},
-	redrawElement: function(a) {
-		var d = a.style.display;
-		a.style.display = "none";
-		a.style.display = d
+	redrawElement: function(dom) {
+		var display = dom.style.display;
+		dom.style.display = "none";
+		dom.style.display = display
 	},
 	normalize: function(a, d, f, g, c) {
 		return g + (a - d) / (f - d) * (c - g)
@@ -632,7 +632,7 @@ R.Prefixed = function() {
 		this.style = c;
 		this.setStyle = h;
 		this.onTransitionEnd = k;
-		this.requestAnimationFrame = l(60);
+		this.requestAnimationFrame = requestAnimationFrame(60);
 		return this
 	};
 	var c = function(g, h) {
@@ -661,7 +661,7 @@ R.Prefixed = function() {
 			};
 			a.addEventListener(g, a.onTransitionEnd)
 		},
-		l = function(a) {
+		requestAnimationFrame = function(a) {
 			var c = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || function(a) {
 					window.setTimeout(a, 1E3 / 60)
 				};
@@ -1133,14 +1133,24 @@ R.Site = function() {
 		this.addListeners()
 	};
 	this.resizeRibbon = function() {
-		768 > window.innerWidth ? (this.ribbonWidth = 60, this.navHeight = 40) : (this.ribbonWidth = 136, this.navHeight = 60);
-		var a = R.id("ribbon");
-		a.width = window.innerWidth * R.scale;
-		a.height = window.innerHeight * R.scale;
-		a.style.width = window.innerWidth +
-			"px";
-		a.style.height = window.innerHeight + this.navHeight + "px";
-		this.ribbon && (this.ribbon.setWidth(this.ribbonWidth, this.navHeight), this.ribbon.straighten(), this.ribbon.resetSize())
+
+		if (window.innerWidth < 768) {
+			this.ribbonWidth = 60;
+			this.navHeight = 40;
+		} else {
+			this.ribbonWidth = 136;
+			this.navHeight = 60;
+		}
+		var canvas = R.id("ribbon");
+		canvas.width = window.innerWidth * R.scale;
+		canvas.height = window.innerHeight * R.scale;
+		canvas.style.width = window.innerWidth + "px";
+		canvas.style.height = window.innerHeight + this.navHeight + "px";
+		if (this.ribbon) {
+			this.ribbon.setWidth(this.ribbonWidth, this.navHeight);
+			this.ribbon.straighten();
+			this.ribbon.resetSize();
+		}
 	};
 	this.createRibbon = function() {
 		this.ribbon = new Ribbon(
@@ -2418,6 +2428,7 @@ var SimplexNoise = function(a) {
 SimplexNoise.prototype.dot = function(a, d, f) {
 	return a[0] * d + a[1] * f
 };
+//simplex-noise.js is a fast simplex noise implementation in Javascript. It works in the browser and on nodejs.
 SimplexNoise.prototype.noise = function(a, d) {
 	var f, g, c;
 	c = 0.5 * (Math.sqrt(3) - 1);
@@ -2487,26 +2498,32 @@ SimplexNoise.prototype.noise3d = function(a, d, f) {
 	0 > a ? f = 0 : (a *= a, f = a * a * this.dot(this.grad3[l], f, d, k));
 	return 32 * (g + c + h + f)
 };
-var SimplexStepper = function(a) {
+var SimplexStepper = function(step) {
 	new SimplexNoise;
-	var d = new SimplexNoise,
-		f = 0,
-		g = 0,
-		c = 1,
-		h, k = !1;
-	this.__construct__ = function(a) {
-		a && (c = a)
+	var simplexNoise = new SimplexNoise,
+		count = 0,
+		totalSteps = 0,
+		simpleStep = 1,
+		value,
+		flag = false;
+	this.__construct__ = function(step) {
+		if (step) {
+			simpleStep = step;
+		}
 	};
 	this.advance = function() {
-		f++;
-		g += 0.5 * c * (d.noise(0, f / 100) + 1);
-		k = !1
+		count++;
+		totalSteps += 0.5 * simpleStep * (simplexNoise.noise(0, count / 100) + 1);
+		flag = false;
 	};
 	this.getValue = function() {
-		k || (h = 0.5 * (d.noise(1, g / 500) + 1), k = !0);
-		return h
+		if (!flag) {
+			value = 0.5 * (simplexNoise.noise(1, totalSteps / 500) + 1);
+			flag = true
+		}
+		return value;
 	};
-	this.__construct__(a)
+	this.__construct__(step)
 };
 var WeightOption = {
 		STRONGER: 1,
@@ -2999,8 +3016,14 @@ var Polygon3D = function() {
 		self.points = [new Point3D, new Point3D, new Point3D, new Point3D]
 	};
 	this.setVerticesLength = function(length) {
-		for (; verticesLength < length;) self.points.push(new Point3D), verticesLength++;
-		for (; verticesLength > length;) self.points.pop(), verticesLength--
+		for (; verticesLength < length;) {
+			self.points.push(new Point3D);
+			verticesLength++;
+		}
+		for (; verticesLength > length;) {
+			self.points.pop();
+			verticesLength--;
+		}
 	};
 	this.getVerticesLength = function() {
 		return verticesLength
@@ -3107,8 +3130,8 @@ var DrawStyle = {
 			currentSegment = null,
 			totalSegmentLength = 0,
 			lengthMultiplier = 1,
-			pullPoints = null,
-			w = 0;
+			segmentPulled = null,
+			totalSegmentLEngthAtLastPull = 0;
 		this.yOffsetForce = this.yOffset = 0;
 		self.primaryColor = null;
 		var flat3dDrawer = self.secondaryColor = null,
@@ -3133,18 +3156,18 @@ var DrawStyle = {
 		};
 		self.advance = function() {
 			self.move(self.speed);
-			var lastSegment = getLastSegment(self.drivePoint);
+			var segmentBeingPulled = getSegmentFromPullPoint(self.drivePoint);
 			var advanceSegment = function(segment, anchorPoint) {
 				segment.setColor();
 				segment.advance();
 				segment.applyForces(anchorPoint);
 			};
-			advanceSegment(lastSegment, SegmentAnchorPoint.CENTER);
-			for (var segment = lastSegment.previousSegment; segment;) {
+			advanceSegment(segmentBeingPulled, SegmentAnchorPoint.CENTER);
+			for (var segment = segmentBeingPulled.previousSegment; segment;) {
 				advanceSegment(segment, SegmentAnchorPoint.END);
 				segment = segment.previousSegment;
 			}
-			for (segment = lastSegment.nextSegment; segment;) {
+			for (segment = segmentBeingPulled.nextSegment; segment;) {
 				advanceSegment(segment, SegmentAnchorPoint.START);
 				segment = segment.nextSegment;
 			}
@@ -3195,45 +3218,75 @@ var DrawStyle = {
 				ribbonDomHolder.update();
 			}
 		};
-		self.move = function(speed) {
+		self.move = function(amount) {
 			for (var segment = currentSegment; segment;) {
-				segment.move(speed);
+				segment.move(amount);
 				segment = segment.nextSegment;
 			}
-			self.canDestruct && self.destroySegments();
+			if (self.canDestruct) {
+				self.destroySegments();
+			}
 			self.createSegments()
 		};
 		self.straighten = function() {
 			self.straightenStrength = Math.max(Math.min(self.straightenStrength, 1), 0);
 			self.width = self.collapsedRibbonWidth + (self.fullRibbonWidth - self.collapsedRibbonWidth) * (1 - self.straightenStrength);
-			var a;
-			a = pullPoints ? pullPoints : getLastSegment(0.5);
-			a.width = self.width;
-			a.straightenStrength = Math.min(self.straightenStrength + self.pullStrength, 1);
-			a.applyForces(SegmentAnchorPoint.CENTER);
-			for (var segment = a.nextSegment, d; segment;) {
-				segment.width = self.width;
-				d = 1;
-				if (0 < self.pullSpread) {
-					d = segment.distanceFromSegment(a, SearchDirection.LEFT) /
-						(1 * w);
-					var g = 2 * self.pullSpread,
-						h = 2 * g;
-					d = d < g ? 1 : d > h ? 0 : 1 - (d - g) / (h - g)
+
+			var segment = segmentPulled ? segmentPulled : getSegmentFromPullPoint(0.5);
+			segment.width = self.width;
+			segment.straightenStrength = Math.min(self.straightenStrength + self.pullStrength, 1);
+			segment.applyForces(SegmentAnchorPoint.CENTER);
+			for (var seg = segment.nextSegment, pullStrength; segment;) {
+				seg.width = self.width;
+				pullStrength = 1;
+				if (self.pullSpread > 0) {
+					// the further away from the pull, the weak the pull strength
+					pullStrength = seg.distanceFromSegment(segment, SearchDirection.LEFT) / totalSegmentLEngthAtLastPull;
+					var doublePullSpread = 2 * self.pullSpread,
+						quadrupleSpread = 2 * doublePullSpread;
+
+					if(pullStrength < doublePullSpread) {
+						pullStrength = 1
+					} else if (pullStrength > quadrupleSpread) {
+						pullStrength = 0;
+					} else {
+						pullStrength = 1 - (pullStrength - doublePullSpread) / (quadrupleSpread - doublePullSpread);
+					}
 				}
-				d *= self.pullStrength;
-				segment.straightenStrength = Math.min(self.straightenStrength + d, 1);
-				segment.applyForces(SegmentAnchorPoint.START);
-				segment = segment.nextSegment
+				pullStrength *= self.pullStrength;
+				seg.straightenStrength = Math.min(self.straightenStrength + pullStrength, 1);
+				seg.applyForces(SegmentAnchorPoint.START);
+				seg = seg.nextSegment
 			}
-			for (segment = a.previousSegment; segment;) segment.width = self.width, d = 1, 0 < self.pullSpread && (d = segment.distanceFromSegment(a, SearchDirection.RIGHT) / (1 * w), g = 2 * self.pullSpread, h = 2 * g, d = d < g ? 1 : d > h ? 0 : 1 - (d - g) / (h - g)), d *= self.pullStrength, segment.straightenStrength = Math.min(self.straightenStrength + d, 1), segment.applyForces(SegmentAnchorPoint.END), segment = segment.previousSegment
+			for (seg = segment.previousSegment; seg;) {
+				seg.width = self.width;
+				pullStrength = 1;
+				if (self.pullSpread > 0) {
+					pullStrength = seg.distanceFromSegment(segment, SearchDirection.RIGHT) / totalSegmentLEngthAtLastPull;
+					doublePullSpread = 2 * self.pullSpread;
+					quadrupleSpread = 2 * doublePullSpread;
+
+					if(pullStrength < doublePullSpread) {
+						pullStrength = 1;
+					} else if (pullStrength > quadrupleSpread) {
+						pullStrength = 0;
+					} else {
+						pullStrength = 1 - (pullStrength - doublePullSpread) / (quadrupleSpread - doublePullSpread);
+					}
+
+				}
+				pullStrength *= self.pullStrength;
+				seg.straightenStrength = Math.min(self.straightenStrength + pullStrength, 1);
+				seg.applyForces(SegmentAnchorPoint.END);
+				seg = seg.previousSegment
+			}
 		};
-		self.setPullPoint = function(a) {
-			pullPoints = getLastSegment(a);
-			w = totalSegmentLength
+		self.setPullPoint = function(pullPoint) {
+			segmentPulled = getSegmentFromPullPoint(pullPoint);
+			totalSegmentLEngthAtLastPull = totalSegmentLength
 		};
 		self.clearPullPoint = function() {
-			pullPoints = null
+			segmentPulled = null
 		};
 		self.destroySegments = function() {
 			for (;currentSegment.endPoint.x < -800;) {
@@ -3261,23 +3314,31 @@ var DrawStyle = {
 			}
 		};
 		self.createSegments = function() {
-			for (var segments = [], flag = false; currentSegment.startPoint.x > -600;) {
-				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, flag);
+			for (var segments = [], isStarting = false; currentSegment.startPoint.x > -600;) {
+				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, isStarting);
 				currentSegment.setLengthMultiplier(lengthMultiplier);
 				segments.push(currentSegment);
-				for (var n = 0; hasSegmentsCloseToEachOther(currentSegment) && 5 > n;) {
+
+				for (var n = 0; hasSegmentsCloseToEachOther(currentSegment) && n < 5;) {
 					n++;
 					currentSegment = segments[0].nextSegment;
 					currentSegment.previousSegment = null;
-					if (flat3dDrawer)
-						for (var j = segments.length, i = 0; i < j; i++) flat3dDrawer.removePolygon(segments[i].polygon);
-					if (ribbonDomHolder)
-						for (j = segments.length, i = 0; i < j; i++) ribbonDomHolder.removeSegment(segments[i]);
+					if (flat3dDrawer) {
+						for (var j = segments.length, i = 0; i < j; i++) {
+							flat3dDrawer.removePolygon(segments[i].polygon);
+						}
+					}
+					if (ribbonDomHolder) {
+						for (j = segments.length, i = 0; i < j; i++) {
+							ribbonDomHolder.removeSegment(segments[i]);
+						}
+					}
 					segments = [];
-					currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, !0);
+					currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, true);
 					currentSegment.setLengthMultiplier(lengthMultiplier);
 					segments.push(currentSegment)
 				}
+
 				totalSegmentLength += currentSegment.segmentLength;
 				currentSegment.width = self.width;
 				currentSegment.straightenStrength = Math.max(currentSegment.nextSegment.straightenStrength, self.pullStrength);
@@ -3290,8 +3351,8 @@ var DrawStyle = {
 				}
 			}
 			segments = [];
-			for (flag = false; currentSegment.endPoint.x < canvasDimensions.width + 600;) {
-				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, flag);
+			for (isStarting = false; currentSegment.endPoint.x < canvasDimensions.width + 600;) {
+				currentSegment = new RibbonSegment(currentSegment, self.primaryColor, self.secondaryColor, isStarting);
 				currentSegment.setLengthMultiplier(lengthMultiplier);
 				segments.push(currentSegment);
 				for (n = 0; hasSegmentsCloseToEachOther(currentSegment) && n < 5;) {
@@ -3359,9 +3420,9 @@ var DrawStyle = {
 				flat3dDrawer.addPolygonAtDepth(segment.polygon, 0);
 			}
 		}
-		function getLastSegment(a) {
+		function getSegmentFromPullPoint(pullPoint) {
 			for (var segment = currentSegment; segment;) {
-				if (segment.endPoint.x / canvasDimensions.width > a || !segment.nextSegment) {
+				if (segment.endPoint.x / canvasDimensions.width > pullPoint || !segment.nextSegment) {
 					return segment;
 				}
 				segment = segment.nextSegment
@@ -3377,21 +3438,24 @@ var DrawStyle = {
 			return totalHeight / (2 * totalSegments) + (0.5 - self.verticalPosition) * (canvasDimensions.height - self.width)
 		}
 		function hasSegmentsCloseToEachOther(segment) {
-			var isLast = segment.nextSegment ? 0 : 1;
+			var hasNextSegment = segment.nextSegment;
 			var current;
-			if (!isLast) {
+			if (hasNextSegment) {
 				current = segment.nextSegment.nextSegment;
 			} else {
 				current = segment.previousSegment.previousSegment;
 			}
 
 			for (var i = 0; current && i < 6;) {
+
 				var segOriginalStartPoint = segment.originalStartPoint;
 				var segOriginalEndPoint = segment.originalEndPoint;
+				var segDistance = getDistance(segOriginalEndPoint, segOriginalStartPoint);
+
 				var currentOriginalStartingPoint = current.originalStartPoint;
 				var currentOriginalEndPoint = current.originalEndPoint;
-				var segDistance = getDistance(segOriginalEndPoint, segOriginalStartPoint);
 				var currentDistance = getDistance(currentOriginalEndPoint, currentOriginalStartingPoint);
+
 				var areaDiff = getAreaDiff(getDistance(currentOriginalStartingPoint, segOriginalStartPoint), segDistance);
 
 				var diff1, diff2, close;
@@ -3401,13 +3465,13 @@ var DrawStyle = {
 				} else {
 					diff1 = areaDiff / segDistance;
 					diff2 = getAreaDiff(getDistance(currentOriginalStartingPoint, segOriginalStartPoint), currentDistance) / segDistance;
-					close = 0 <= diff2 && 1 >= diff2 && 0 <= diff1 && 1 >= diff1
+					close = diff2 >= 0 && diff2 <= 1&& diff1 >= 0 && diff1 <= 1
 				}
 
 				if (close) {
 					return true;
 				}
-				if (!isLast) {
+				if (hasNextSegment) {
 					current = current.nextSegment;
 				} else {
 					current = current.previousSegment;
@@ -3508,10 +3572,10 @@ var segmentMinimumLength = 300,
 	 * @param segment
 	 * @param color1
 	 * @param color2
-	 * @param flag
+	 * @param isStarting
 	 * @constructor
 	 */
-	RibbonSegment = function(segment, color1, color2, flag) {
+	RibbonSegment = function(segment, color1, color2, isStarting) {
 		var self = this;
 		self.previousSegment = null;
 		self.nextSegment = null;
@@ -3528,83 +3592,252 @@ var segmentMinimumLength = 300,
 		self.primaryColor = color1;
 		self.secondaryColor = color2;
 		self.color = color1;
-		var h = 20,
+		var baseAngleUnit = 20,
 			lengthMultiplier = 1;
-		this.move = function(a) {
-			self.startPoint.x -= a;
-			self.endPoint.x -= a
+		this.move = function(amount) {
+			self.startPoint.x -= amount;
+			self.endPoint.x -= amount
 		};
 		this.advance = function() {
 			self.simplexStepper.advance();
 		};
-		this.applyForces = function(a) {
-			var f = self.getCurrentAngle(),
-				d = Math.cos(f * degToRad),
-				f = Math.sin(f * degToRad);
-			if (a == SegmentAnchorPoint.CENTER) {
-				var g;
-				a = (self.startPoint.x + self.endPoint.x) / 2;
-				g = (self.startPoint.y + self.endPoint.y) / 2;
-				self.endPoint.x = a + self.segmentLength / 2 * d;
-				self.endPoint.y = g + self.segmentLength / 2 * f;
-				self.startPoint.x = a - self.segmentLength / 2 * d;
-				self.startPoint.y = g - self.segmentLength / 2 * f
-			} else a == SegmentAnchorPoint.START ? (
-				self.previousSegment && (self.startPoint.x = self.previousSegment.endPoint.x, self.startPoint.y = self.previousSegment.endPoint.y),
-					self.endPoint.x = self.startPoint.x + self.segmentLength * d, self.endPoint.y = self.startPoint.y + self.segmentLength * f) :
-				(self.nextSegment && (self.endPoint.x = self.nextSegment.startPoint.x, self.endPoint.y = self.nextSegment.startPoint.y), self.startPoint.x =
-				self.endPoint.x - self.segmentLength * d, self.startPoint.y = self.endPoint.y - self.segmentLength * f)
+		this.applyForces = function(anchorPoint) {
+			var currentAngle = self.getCurrentAngle(),
+				xRatio = Math.cos(currentAngle * degToRad),
+				yRatio = Math.sin(currentAngle * degToRad);
+			if (anchorPoint == SegmentAnchorPoint.CENTER) {
+				var anchorPointX = (self.startPoint.x + self.endPoint.x) / 2;
+				var anchorPointY = (self.startPoint.y + self.endPoint.y) / 2;
+				self.endPoint.x = anchorPointX + self.segmentLength / 2 * xRatio;
+				self.endPoint.y = anchorPointY + self.segmentLength / 2 * yRatio;
+				self.startPoint.x = anchorPointX - self.segmentLength / 2 * xRatio;
+				self.startPoint.y = anchorPointY - self.segmentLength / 2 * yRatio
+			} else if (anchorPoint == SegmentAnchorPoint.START) {
+				if (self.previousSegment) {
+					self.startPoint.x = self.previousSegment.endPoint.x;
+					self.startPoint.y = self.previousSegment.endPoint.y;
+				}
+				self.endPoint.x = self.startPoint.x + self.segmentLength * xRatio;
+				self.endPoint.y = self.startPoint.y + self.segmentLength * yRatio
+			} else {
+				if (self.nextSegment) {
+					self.endPoint.x = self.nextSegment.startPoint.x;
+					self.endPoint.y = self.nextSegment.startPoint.y;
+				}
+				self.startPoint.x = self.endPoint.x - self.segmentLength * xRatio;
+				self.startPoint.y = self.endPoint.y - self.segmentLength * yRatio;
+			}
 		};
 		self.setColor = function() {
 			if (self.backface) {
-				var a = 360,
-					f = self.getCurrentAngle();
-				self.previousSegment && (a = Math.min(a, Math.abs(f - self.previousSegment.getCurrentAngle())));
-				self.nextSegment && (a = Math.min(a, Math.abs(self.nextSegment.getCurrentAngle() - f)));
-				a = Math.min(Math.max(a - 30, 0) / 10, 1);
-				self.color.setRed(self.primaryColor.getRed() + (self.secondaryColor.getRed() - self.primaryColor.getRed()) * a);
-				self.color.setGreen(self.primaryColor.getGreen() + (self.secondaryColor.getGreen() -
-					self.primaryColor.getGreen()) * a);
-				self.color.setBlue(self.primaryColor.getBlue() + (self.secondaryColor.getBlue() - self.primaryColor.getBlue()) * a)
+				var base = 360,
+					angle = self.getCurrentAngle();
+
+				if (self.previousSegment) {
+					base = Math.min(base, Math.abs(angle - self.previousSegment.getCurrentAngle()));
+				}
+
+				if (self.nextSegment) {
+					base = Math.min(base, Math.abs(self.nextSegment.getCurrentAngle() - angle));
+				}
+				base = Math.min(Math.max(base - 30, 0) / 10, 1);
+
+				self.color.setRed(self.primaryColor.getRed() + (self.secondaryColor.getRed() - self.primaryColor.getRed()) * base);
+				self.color.setGreen(self.primaryColor.getGreen() + (self.secondaryColor.getGreen() - self.primaryColor.getGreen()) * base);
+				self.color.setBlue(self.primaryColor.getBlue() + (self.secondaryColor.getBlue() - self.primaryColor.getBlue()) * base)
 			}
 		};
 		self.getCurrentAngle = function() {
-			var a = -(h / 2) + h * self.simplexStepper.getValue();
-			return (self.primaryAngle + a) * (1 - self.straightenStrength)
+			var movedAngle = baseAngleUnit * self.simplexStepper.getValue() - (baseAngleUnit / 2);
+			return (self.primaryAngle + movedAngle) * (1 - self.straightenStrength)
 		};
 		self.resetPolygon = function() {
-			var a = self.getCurrentAngle(),
-				f = a - 180; - 180 > f && (f += 360);
-			var d = f - 90,
-				g = f + 90,
-				h = a - 90,
-				k = a + 90,
-				l = 0;
+			var myAngle = self.getCurrentAngle();
+			var myOppositeAngle = myAngle - 180;
+			if(myOppositeAngle < - 180) {
+				myOppositeAngle += 360;
+			}
+			var right = myOppositeAngle - 90;
+			var left = myOppositeAngle + 90;
+			var left2 = myAngle - 90;
+			var right2 = myAngle + 90;
+			var avgAngle = 0;
 			if (self.previousSegment) {
-				var u = self.previousSegment.getCurrentAngle(),
-					g = a - u,
-					v = Math.abs(g);
-				45 < v ? (l = (u + a) / 2, f = a - 180, -180 > f && (f += 360), d = self.width /
-					2 / Math.cos((f + 90 - l) * degToRad), self.polygon.points[0].x = self.startPoint.x - d * Math.cos(l * degToRad), self.polygon.points[0].y = self.startPoint.y - d * Math.sin(l * degToRad), self.polygon.points[0].z = self.startPoint.z, self.polygon.points[1].x = self.startPoint.x + d * Math.cos(l * degToRad), self.polygon.points[1].y = self.startPoint.y + d * Math.sin(l * degToRad), self.polygon.points[1].z = self.startPoint.z, l = 2) : 30 < v ? (l = (u + a) / 2, f = a - 180, -180 > f && (f += 360), d = self.width / 2 / Math.cos((f + 90 - l) * degToRad), self.polygon.points[0].x = self.startPoint.x - d * Math.cos(l * degToRad), self.polygon.points[0].y =
-					self.startPoint.y - d * Math.sin(l * degToRad), self.polygon.points[0].z = self.startPoint.z, self.polygon.points[2].x = self.startPoint.x + d * Math.cos(l * degToRad), self.polygon.points[2].y = self.startPoint.y + d * Math.sin(l * degToRad), self.polygon.points[2].z = self.startPoint.z, d = 1 - (v - 30) / 15, l = (a + u) / 2 + 90, 180 < l && (l -= 360), f = a - 180, -180 > f && (f += 360), d *= self.width / 2 / Math.cos((l - (f + 90)) * degToRad), 0 < g ? (self.polygon.points[1].x = self.startPoint.x + d * Math.cos(l * degToRad), self.polygon.points[1].y = self.startPoint.y + d * Math.sin(l * degToRad)) : (self.polygon.points[1].x = self.startPoint.x -
-					d * Math.cos(l * degToRad), self.polygon.points[1].y = self.startPoint.y - d * Math.sin(l * degToRad)), self.polygon.points[1].z = self.startPoint.z, l = 3) : (l = (a + u) / 2 + 90, 180 < l && (l -= 360), f = a - 180, -180 > f && (f += 360), d = self.width / 2 / Math.cos((l - (f + 90)) * degToRad), g = self.startPoint.x - 0.5 * Math.cos(a * degToRad), v = self.startPoint.y - 0.5 * Math.sin(a * degToRad), f = self.startPoint.z, self.polygon.points[0].x = g - d * Math.cos(l * degToRad), self.polygon.points[0].y = v - d * Math.sin(l * degToRad), self.polygon.points[0].z = f, self.polygon.points[1].x = g + d * Math.cos(l * degToRad), self.polygon.points[1].y =
-					v + d * Math.sin(l * degToRad), self.polygon.points[1].z = f, l = 2)
-			} else self.polygon.points[0].x = self.startPoint.x + self.width / 2 * Math.cos(d * degToRad), self.polygon.points[0].y = self.startPoint.y + self.width / 2 * Math.sin(d * degToRad), self.polygon.points[0].z = self.startPoint.z, self.polygon.points[1].x = self.startPoint.x + self.width / 2 * Math.cos(g * degToRad), self.polygon.points[1].y = self.startPoint.y + self.width / 2 * Math.sin(g * degToRad), self.polygon.points[1].z = self.startPoint.z, l = 2;
-			self.nextSegment ? (k = self.nextSegment.getCurrentAngle(), g = k - a, v = Math.abs(g), 45 < v ? (self.polygon.setVerticesLength(l +
-				2), h = (a + k) / 2, d = self.width / 2 / Math.cos((a + 90 - h) * degToRad), self.polygon.points[l].x = self.endPoint.x - d * Math.cos(h * degToRad), self.polygon.points[l].y = self.endPoint.y - d * Math.sin(h * degToRad), self.polygon.points[l].z = self.endPoint.z, self.polygon.points[l + 1].x = self.endPoint.x + d * Math.cos(h * degToRad), self.polygon.points[l + 1].y = self.endPoint.y + d * Math.sin(h * degToRad), self.polygon.points[l + 1].z = self.endPoint.z) : 30 < v ? (self.polygon.setVerticesLength(l + 3), h = (a + k) / 2, d = self.width / 2 / Math.cos((a + 90 - h) * degToRad), self.polygon.points[l].x = self.endPoint.x - d * Math.cos(h * degToRad),
-				self.polygon.points[l].y = self.endPoint.y - d * Math.sin(h * degToRad), self.polygon.points[l].z = self.endPoint.z, self.polygon.points[l + 2].x = self.endPoint.x + d * Math.cos(h * degToRad), self.polygon.points[l + 2].y = self.endPoint.y + d * Math.sin(h * degToRad), self.polygon.points[l + 2].z = self.endPoint.z, d = 1 - (v - 30) / 15, h = (a + k) / 2 + 90, 180 < h && (h -= 360), d *= self.width / 2 / Math.cos((h - (a + 90)) * degToRad), 0 < g ? (self.polygon.points[l + 1].x = self.endPoint.x - d * Math.cos(h * degToRad), self.polygon.points[l + 1].y = self.endPoint.y - d * Math.sin(h * degToRad)) : (self.polygon.points[l + 1].x = self.endPoint.x + d *
-				Math.cos(h * degToRad), self.polygon.points[l + 1].y = self.endPoint.y + d * Math.sin(h * degToRad)), self.polygon.points[l + 1].z = self.startPoint.z) : (self.polygon.setVerticesLength(l + 2), h = (a + k) / 2 + 90, 180 < h && (h -= 360), d = self.width / 2 / Math.cos((h - (a + 90)) * degToRad), k = self.endPoint.x + 0.5 * Math.cos(a * degToRad), a = self.endPoint.y + 0.5 * Math.sin(a * degToRad), g = self.endPoint.z, self.polygon.points[l].x = k - d * Math.cos(h * degToRad), self.polygon.points[l].y = a - d * Math.sin(h * degToRad), self.polygon.points[l].z = g, self.polygon.points[l + 1].x = k + d * Math.cos(h * degToRad), self.polygon.points[l +
-			1].y = a + d * Math.sin(h * degToRad), self.polygon.points[l + 1].z = g)) : (self.polygon.setVerticesLength(l + 2), self.polygon.points[l].x = self.endPoint.x + self.width / 2 * Math.cos(h * degToRad), self.polygon.points[l].y = self.endPoint.y + self.width / 2 * Math.sin(h * degToRad), self.polygon.points[l].z = self.endPoint.z, self.polygon.points[l + 1].x = self.endPoint.x + self.width / 2 * Math.cos(k * degToRad), self.polygon.points[l + 1].y = self.endPoint.y + self.width / 2 * Math.sin(k * degToRad), self.polygon.points[l + 1].z = self.endPoint.z)
+				var prevSegmentAngle = self.previousSegment.getCurrentAngle();
+				var angleDiff = myAngle - prevSegmentAngle;
+				var absAngleDiff = Math.abs(angleDiff);
+
+				if (45 < absAngleDiff) {
+					avgAngle = (prevSegmentAngle + myAngle) / 2;
+					myOppositeAngle = myAngle - 180;
+
+					if (myOppositeAngle < - 180) {
+						myOppositeAngle += 360;
+					}
+
+					var radius = self.width / 2 / Math.cos((myOppositeAngle + 90 - avgAngle) * degToRad);
+					self.polygon.points[0].x = self.startPoint.x - radius * Math.cos(avgAngle * degToRad);
+					self.polygon.points[0].y = self.startPoint.y - radius * Math.sin(avgAngle * degToRad);
+					self.polygon.points[0].z = self.startPoint.z;
+					self.polygon.points[1].x = self.startPoint.x + radius * Math.cos(avgAngle * degToRad);
+					self.polygon.points[1].y = self.startPoint.y + radius * Math.sin(avgAngle * degToRad);
+					self.polygon.points[1].z = self.startPoint.z;
+					avgAngle = 2;
+
+				} else if (30 < absAngleDiff) {
+					avgAngle = (prevSegmentAngle + myAngle) / 2;
+					myOppositeAngle = myAngle - 180;
+
+					if (myOppositeAngle < -180) {
+						myOppositeAngle += 360;
+					}
+
+					var radius = self.width / 2 / Math.cos((myOppositeAngle + 90 - avgAngle) * degToRad);
+					self.polygon.points[0].x = self.startPoint.x - radius * Math.cos(avgAngle * degToRad);
+					self.polygon.points[0].y = self.startPoint.y - radius * Math.sin(avgAngle * degToRad);
+					self.polygon.points[0].z = self.startPoint.z;
+					self.polygon.points[2].x = self.startPoint.x + radius * Math.cos(avgAngle * degToRad);
+					self.polygon.points[2].y = self.startPoint.y + radius * Math.sin(avgAngle * degToRad);
+					self.polygon.points[2].z = self.startPoint.z;
+
+					radius = 1 - (absAngleDiff - 30) / 15;
+					avgAngle = (myAngle + prevSegmentAngle) / 2 + 90;
+
+					if (avgAngle > 180) {
+						avgAngle -= 360;
+					}
+
+					myOppositeAngle = myAngle - 180;
+
+					if (myOppositeAngle < -180) {
+						myOppositeAngle += 360;
+					}
+
+					radius *= self.width / 2 / Math.cos((avgAngle - (myOppositeAngle + 90)) * degToRad);
+
+					if(0 < angleDiff) {
+						self.polygon.points[1].x = self.startPoint.x + radius * Math.cos(avgAngle * degToRad);
+						self.polygon.points[1].y = self.startPoint.y + radius * Math.sin(avgAngle * degToRad);
+					} else {
+						self.polygon.points[1].x = self.startPoint.x - radius * Math.cos(avgAngle * degToRad);
+						self.polygon.points[1].y = self.startPoint.y - radius * Math.sin(avgAngle * degToRad);
+					}
+					self.polygon.points[1].z = self.startPoint.z;
+					avgAngle = 3;
+				} else {
+					avgAngle = (myAngle + prevSegmentAngle) / 2 + 90;
+					if (avgAngle > 180) {
+						avgAngle -= 360;
+					}
+
+					myOppositeAngle = myAngle - 180;
+					if (myOppositeAngle < -180) {
+						myOppositeAngle += 360;
+					}
+
+					var radius = self.width / 2 / Math.cos((avgAngle - (myOppositeAngle + 90)) * degToRad);
+
+					angleDiff = self.startPoint.x - 0.5 * Math.cos(myAngle * degToRad);
+					absAngleDiff = self.startPoint.y - 0.5 * Math.sin(myAngle * degToRad);
+
+
+					self.polygon.points[0].x = angleDiff - radius * Math.cos(avgAngle * degToRad);
+					self.polygon.points[0].y = absAngleDiff - radius * Math.sin(avgAngle * degToRad);
+					self.polygon.points[0].z = self.startPoint.z;
+					self.polygon.points[1].x = angleDiff + radius * Math.cos(avgAngle * degToRad);
+					self.polygon.points[1].y = absAngleDiff + radius * Math.sin(avgAngle * degToRad);
+					self.polygon.points[1].z = self.startPoint.z;
+					avgAngle = 2;
+				}
+			} else {
+				self.polygon.points[0].x = self.startPoint.x + self.width / 2 * Math.cos(right * degToRad);
+				self.polygon.points[0].y = self.startPoint.y + self.width / 2 * Math.sin(right * degToRad);
+				self.polygon.points[0].z = self.startPoint.z;
+				self.polygon.points[1].x = self.startPoint.x + self.width / 2 * Math.cos(left * degToRad);
+				self.polygon.points[1].y = self.startPoint.y + self.width / 2 * Math.sin(left * degToRad);
+				self.polygon.points[1].z = self.startPoint.z;
+				avgAngle = 2;
+			}
+
+			if (self.nextSegment) {
+				right2 = self.nextSegment.getCurrentAngle();
+				left = right2 - myAngle;
+				absAngleDiff = Math.abs(left);
+
+				if (45 < absAngleDiff) {
+					self.polygon.setVerticesLength(avgAngle + 2);
+					right2 = (myAngle + right2) / 2;
+					right = self.width / 2 / Math.cos((myAngle + 90 - right2) * degToRad);
+					self.polygon.points[avgAngle].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
+					self.polygon.points[avgAngle].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
+					self.polygon.points[avgAngle].z = self.endPoint.z;
+					self.polygon.points[avgAngle + 1].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
+					self.polygon.points[avgAngle + 1].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
+					self.polygon.points[avgAngle + 1].z = self.endPoint.z;
+				} else if (30 < absAngleDiff) {
+					self.polygon.setVerticesLength(avgAngle + 3);
+					right2 = (myAngle + right2) / 2;
+					right = self.width / 2 / Math.cos((myAngle + 90 - right2) * degToRad);
+					self.polygon.points[avgAngle].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
+					self.polygon.points[avgAngle].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
+					self.polygon.points[avgAngle].z = self.endPoint.z;
+					self.polygon.points[avgAngle + 2].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
+					self.polygon.points[avgAngle + 2].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
+					self.polygon.points[avgAngle + 2].z = self.endPoint.z;
+					right = 1 - (absAngleDiff - 30) / 15;
+					right2 = (myAngle + right2) / 2 + 90;
+					180 < right2 && (right2 -= 360);
+					right *= self.width / 2 / Math.cos((right2 - (myAngle + 90)) * degToRad);
+					if (0 < left) {
+						self.polygon.points[avgAngle + 1].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
+						self.polygon.points[avgAngle + 1].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
+					} else {
+						self.polygon.points[avgAngle + 1].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
+						self.polygon.points[avgAngle + 1].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
+					}
+					self.polygon.points[avgAngle + 1].z = self.startPoint.z
+				} else {
+					self.polygon.setVerticesLength(avgAngle + 2);
+					right2 = (myAngle + right2) / 2 + 90;
+					180 < right2 && (right2 -= 360);
+					right = self.width / 2 / Math.cos((right2 - (myAngle + 90)) * degToRad);
+					right2 = self.endPoint.x + 0.5 * Math.cos(myAngle * degToRad);
+					myAngle = self.endPoint.y + 0.5 * Math.sin(myAngle * degToRad);
+					left = self.endPoint.z;
+					self.polygon.points[avgAngle].x = right2 - right * Math.cos(right2 * degToRad);
+					self.polygon.points[avgAngle].y = myAngle - right * Math.sin(right2 * degToRad);
+					self.polygon.points[avgAngle].z = left;
+					self.polygon.points[avgAngle + 1].x = right2 + right * Math.cos(right2 * degToRad);
+					self.polygon.points[avgAngle + 1].y = myAngle + right * Math.sin(right2 * degToRad);
+					self.polygon.points[avgAngle + 1].z = left;
+				}
+			} else {
+				self.polygon.setVerticesLength(avgAngle + 2);
+				self.polygon.points[avgAngle].x = self.endPoint.x + self.width / 2 * Math.cos(right2 * degToRad);
+				self.polygon.points[avgAngle].y = self.endPoint.y + self.width / 2 * Math.sin(right2 * degToRad);
+				self.polygon.points[avgAngle].z = self.endPoint.z;
+				self.polygon.points[avgAngle + 1].x = self.endPoint.x + self.width / 2 * Math.cos(right2 * degToRad);
+				self.polygon.points[avgAngle + 1].y = self.endPoint.y + self.width / 2 * Math.sin(right2 * degToRad);
+				self.polygon.points[avgAngle + 1].z = self.endPoint.z;
+			}
+
 		};
-		self.distanceFromSegment = function(a, f) {
-			var d = 0;
-			if (a == self) return d;
-			var g;
-			if (f == SearchDirection.LEFT)
-				for (g = self.previousSegment; g && g != a;) d += g.segmentLength, g = g.previousSegment;
-			else
-				for (g = self.nextSegment; g && g != a;) d += g.segmentLength, g = g.nextSegment;
-			return d += a.segmentLength / 2
+		self.distanceFromSegment = function(segment, searchDirection) {
+			var distance = 0;
+			if (segment == self) return distance;
+			var another;
+			if (searchDirection == SearchDirection.LEFT) {
+				for (another = self.previousSegment; another && another != segment;) {
+					distance += another.segmentLength;
+					another = another.previousSegment;
+				}
+			} else {
+				for (another = self.nextSegment; another && another != segment;) {
+					distance += another.segmentLength;
+					another = another.nextSegment;
+				}
+			}
+			return distance + segment.segmentLength / 2
 		};
 		self.getStartEndCapLength = function() {
 			if (self.previousSegment) {
@@ -3639,7 +3872,7 @@ var segmentMinimumLength = 300,
 				return minDegree + twoSidedWeightedRandom.random() * (maxDegree - minDegree);
 			}
 		};
-		(function(segment, starting) {
+		(function(segment, isStarting) {
 			var str = "0123456789abcdefghijklmnopqrstuvwxyz";
 			var identifier = "";
 			for (var length = 32; 0 < length; --length) {
@@ -3650,7 +3883,7 @@ var segmentMinimumLength = 300,
 				self.backface = !segment.backface;
 				if (self.backface) {
 					self.color = new Color(0, 0, 0);
-					h /= 2;
+					baseAngleUnit /= 2;
 				}
 			}
 			self.polygon.color = self.color;
@@ -3683,7 +3916,7 @@ var segmentMinimumLength = 300,
 
 			var allowedDirection = AllowedDirection.ANY;
 
-			if (!starting) {
+			if (!isStarting) {
 				if (self.previousSegment) {
 					if (self.originalStartPoint.y >= 100){
 						allowedDirection = AllowedDirection.UP;
@@ -3703,11 +3936,11 @@ var segmentMinimumLength = 300,
 
 			if (self.previousSegment) {
 
-				if (-30 < self.previousSegment.primaryAngle && 30 > self.previousSegment.primaryAngle) {
+				if (-30 < self.previousSegment.primaryAngle && self.previousSegment.primaryAngle < 30) {
 					self.primaryAngle = getRandomAngle(-130, 130, allowedDirection);
-				} else if (-90 < self.previousSegment.primaryAngle && 90 > self.previousSegment.primaryAngle) {
+				} else if (-90 < self.previousSegment.primaryAngle && self.previousSegment.primaryAngle < 90) {
 					self.primaryAngle = getRandomAngle(-60, 60, allowedDirection);
-				} else if (-90 >= self.previousSegment.primaryAngle) {
+				} else if (self.previousSegment.primaryAngle <= -90) {
 					self.primaryAngle = getRandomAngle(self.previousSegment.primaryAngle + 90 - 45, self.previousSegment.primaryAngle + 90 + 45, allowedDirection);
 				} else {
 					self.primaryAngle = getRandomAngle(self.previousSegment.primaryAngle - 90 - 45, self.previousSegment.primaryAngle - 90 + 45, allowedDirection);
@@ -3715,7 +3948,7 @@ var segmentMinimumLength = 300,
 
 				allowedDirection = self.primaryAngle - self.previousSegment.primaryAngle;
 
-				if (55 > allowedDirection && -55 < allowedDirection) {
+				if (-55 < allowedDirection && allowedDirection < 55) {
 					if(0 < allowedDirection) {
 						self.primaryAngle = self.previousSegment.primaryAngle + 55.55;
 					} else {
@@ -3777,7 +4010,7 @@ var segmentMinimumLength = 300,
 				self.originalEndPoint.y = self.originalStartPoint.y + self.segmentLength * Math.sin(self.primaryAngle * degToRad);
 				self.originalEndPoint.z = 0;
 			}
-		})(segment, flag)
+		})(segment, isStarting)
 	};
 var RibbonDOMHolder = function(a) {
 	var self = this;
@@ -3895,17 +4128,17 @@ var RibbonPullDirection = {
 		RIGHT: 0,
 		LEFT: 1
 	},
-	RibbonInteractionManager = function(a) {
-		this.ribbon = a;
-		var d = function() {
-			a.advance();
-			a.draw()
+	RibbonInteractionManager = function(ribbon) {
+		this.ribbon = ribbon;
+		var draw = function() {
+			ribbon.advance();
+			ribbon.draw()
 		};
 		this.attachToRenderFrame = function() {
-			GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, d)
+			GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, draw)
 		};
 		this.detachFromRenderFrame = function() {
-			GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, d)
+			GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, draw)
 		};
 		this.animateToTop = function(d) {
 			var g = {
@@ -3915,11 +4148,11 @@ var RibbonPullDirection = {
 				value: 1,
 				ease: Ease.easeIn.sine,
 				onUpdate: function(c) {
-					a.verticalPosition = 0.5 - 0.5 * g.value;
-					a.positionDamping = g.value;
-					a.straightenStrength =
+					ribbon.verticalPosition = 0.5 - 0.5 * g.value;
+					ribbon.positionDamping = g.value;
+					ribbon.straightenStrength =
 						Math.min(g.value / 0.85, 1);
-					a.straighten()
+					ribbon.straighten()
 				},
 				onComplete: function(a) {
 					d && d()
@@ -3934,10 +4167,10 @@ var RibbonPullDirection = {
 				value: 0,
 				ease: Ease.easeOut.sine,
 				onUpdate: function(g) {
-					a.verticalPosition = 0.5 - 0.5 * d.value;
-					a.positionDamping = d.value;
-					a.straightenStrength = Math.min(d.value / 0.85, 1);
-					a.straighten()
+					ribbon.verticalPosition = 0.5 - 0.5 * d.value;
+					ribbon.positionDamping = d.value;
+					ribbon.straightenStrength = Math.min(d.value / 0.85, 1);
+					ribbon.straighten()
 				},
 				onComplete: function(a) {}
 			})
@@ -3945,13 +4178,13 @@ var RibbonPullDirection = {
 		this.animatePull = function(d, g) {
 			g || (g = new Color(255 * Math.random(), 255 * Math.random(), 255 * Math.random()));
 			var c, h, k;
-			d == RibbonPullDirection.RIGHT ? (c = 0, h = 50, k = Math.abs(a.idleSpeed)) :
-				(c = 1, h = -50, k = -Math.abs(a.idleSpeed));
-			var l = new ColorTransition(a.primaryColor.clone(), g),
-				n = new ColorTransition(a.secondaryColor.clone(), a.secondaryColorFromPrimaryColor(g));
-			a.canDestruct = !1;
-			a.setPullPoint(c);
-			var p = a.speed,
+			d == RibbonPullDirection.RIGHT ? (c = 0, h = 50, k = Math.abs(ribbon.idleSpeed)) :
+				(c = 1, h = -50, k = -Math.abs(ribbon.idleSpeed));
+			var l = new ColorTransition(ribbon.primaryColor.clone(), g),
+				n = new ColorTransition(ribbon.secondaryColor.clone(), ribbon.secondaryColorFromPrimaryColor(g));
+			ribbon.canDestruct = !1;
+			ribbon.setPullPoint(c);
+			var p = ribbon.speed,
 				r = {
 					value: 0
 				};
@@ -3959,22 +4192,22 @@ var RibbonPullDirection = {
 				value: 1,
 				ease: Ease.easeInOut.sine,
 				onUpdate: function(c) {
-					a.pullStrength = 0.3 * r.value;
-					a.pullSpread = r.value;
-					a.straighten();
-					a.speed = (h - p) * Math.min(r.value / 0.3, 1) + p
+					ribbon.pullStrength = 0.3 * r.value;
+					ribbon.pullSpread = r.value;
+					ribbon.straighten();
+					ribbon.speed = (h - p) * Math.min(r.value / 0.3, 1) + p
 				},
 				onComplete: function(c) {
-					a.destroySegments();
-					a.setPullPoint(0.5);
+					ribbon.destroySegments();
+					ribbon.setPullPoint(0.5);
 					new Tween(r, 1150, {
 						delay: 50,
 						value: 0,
 						ease: Ease.easeOut.back,
 						onUpdate: function(c) {
-							a.pullStrength = 0.3 * r.value;
-							a.pullSpread = r.value;
-							a.straighten()
+							ribbon.pullStrength = 0.3 * r.value;
+							ribbon.pullSpread = r.value;
+							ribbon.straighten()
 						}
 					});
 					var d = {
@@ -3985,11 +4218,11 @@ var RibbonPullDirection = {
 						value: 0,
 						ease: Ease.easeOut.cubic,
 						onUpdate: function(c) {
-							a.speed = (h - k) * d.value + k
+							ribbon.speed = (h - k) * d.value + k
 						},
 						onComplete: function(c) {
-							a.canDestruct = !0;
-							a.clearPullPoint()
+							ribbon.canDestruct = !0;
+							ribbon.clearPullPoint()
 						}
 					})
 				}
@@ -4001,7 +4234,7 @@ var RibbonPullDirection = {
 				value: 1,
 				ease: Ease.easeInOut.cubic,
 				onUpdate: function(c) {
-					a.setColors(l.getColorAtValue(q.value), n.getColorAtValue(q.value))
+					ribbon.setColors(l.getColorAtValue(q.value), n.getColorAtValue(q.value))
 				}
 			})
 		};

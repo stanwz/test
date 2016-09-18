@@ -1100,12 +1100,12 @@ R.Site = function() {
 		})
 	};
 	this.onPagesLoaded = function(a) {
-		var c = this.html.pageBodyDivs[this.pageIndex];
-		c.insertAdjacentHTML("beforebegin", a.html_before);
-		c.insertAdjacentHTML("afterend", a.html_after);
-		c = this.html.pageHeadDivs[this.pageIndex];
-		c.insertAdjacentHTML("beforebegin", a.header_html_before);
-		c.insertAdjacentHTML("afterend", a.header_html_after);
+		var div = this.html.pageBodyDivs[this.pageIndex];
+		div.insertAdjacentHTML("beforebegin", a.html_before);
+		div.insertAdjacentHTML("afterend", a.html_after);
+		div = this.html.pageHeadDivs[this.pageIndex];
+		div.insertAdjacentHTML("beforebegin", a.header_html_before);
+		div.insertAdjacentHTML("afterend", a.header_html_after);
 		this.html.pageBodyDivs = R.qsa(".page-body");
 		this.html.pageHeadDivs = R.qsa(".page-head");
 		this.html.pageContentDivs = R.qsa(".page-content");
@@ -1116,10 +1116,10 @@ R.Site = function() {
 		if (R.touch) {
 			a = this.html.pageContentDivs[0].getElementsByClassName("person");
 			new TapBios(a);
-			c = this.html.pageContentDivs[0].getElementsByClassName("client");
-			for (a = c.length - 1; 0 <= a; a--) new TapNonHoverable(c[a]);
-			c = this.html.pageContentDivs[0].getElementsByClassName("award");
-			for (a = c.length - 1; 0 <= a; a--) new TapNonHoverable(c[a])
+			div = this.html.pageContentDivs[0].getElementsByClassName("client");
+			for (a = div.length - 1; 0 <= a; a--) new TapNonHoverable(div[a]);
+			div = this.html.pageContentDivs[0].getElementsByClassName("award");
+			for (a = div.length - 1; 0 <= a; a--) new TapNonHoverable(div[a])
 		}
 		var f = this,
 			c = R.qsa(".page-head-actions a");
@@ -3082,17 +3082,30 @@ var Flat3dSetup = function(canvasDom, scale) {
 		}
 	};
 	this.draw = function() {
-		self.shouldClear && context2d.clearRect(0, 0, canvasWidth, canvasHeight);
+		if(self.shouldClear) {
+			context2d.clearRect(0, 0, canvasWidth, canvasHeight);
+		}
 		for (var i = maxDepth; i >= 0; i--) {
 			if (polygons[i]) {
-				for (var c = 0; c < polygons[i].length; c++) {
-					var d = polygons[i][c],
-						s = d.points;
-					context2d.fillStyle = d.color.getRGBA();
+				for (var n = 0; n < polygons[i].length; n++) {
+					var polygon = polygons[i][n],
+						points = polygon.points;
+					context2d.fillStyle = polygon.color.getRGBA();
 					context2d.beginPath();
-					context2d.moveTo(s[0].x * self.scale, s[0].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale);
-					for (var d = d.getVerticesLength(), w = 1; w < d; w++) context2d.lineTo(s[w].x * self.scale, s[w].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale);
-					context2d.lineTo(s[0].x * self.scale, s[0].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale);
+					context2d.moveTo(
+						points[0].x * self.scale,
+						points[0].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale
+					);
+					for (var length = polygon.getVerticesLength(), pointIndex = 1; pointIndex < length; pointIndex++) {
+						context2d.lineTo(
+							points[pointIndex].x * self.scale,
+							points[pointIndex].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale
+						);
+					}
+					context2d.lineTo(
+						points[0].x * self.scale,
+						points[0].y * self.scale + canvasHeight / 2 - self.yOffset * self.scale
+					);
 					context2d.fill();
 					context2d.closePath()
 				}
@@ -3662,6 +3675,7 @@ var segmentMinimumLength = 300,
 			var left2 = myAngle - 90;
 			var right2 = myAngle + 90;
 			var avgAngle = 0;
+			var pointIndex = 0;
 			if (self.previousSegment) {
 				var prevSegmentAngle = self.previousSegment.getCurrentAngle();
 				var angleDiff = myAngle - prevSegmentAngle;
@@ -3682,7 +3696,7 @@ var segmentMinimumLength = 300,
 					self.polygon.points[1].x = self.startPoint.x + radius * Math.cos(avgAngle * degToRad);
 					self.polygon.points[1].y = self.startPoint.y + radius * Math.sin(avgAngle * degToRad);
 					self.polygon.points[1].z = self.startPoint.z;
-					avgAngle = 2;
+					pointIndex = 2;
 
 				} else if (30 < absAngleDiff) {
 					avgAngle = (prevSegmentAngle + myAngle) / 2;
@@ -3723,7 +3737,7 @@ var segmentMinimumLength = 300,
 						self.polygon.points[1].y = self.startPoint.y - radius * Math.sin(avgAngle * degToRad);
 					}
 					self.polygon.points[1].z = self.startPoint.z;
-					avgAngle = 3;
+					pointIndex = 3;
 				} else {
 					avgAngle = (myAngle + prevSegmentAngle) / 2 + 90;
 					if (avgAngle > 180) {
@@ -3747,7 +3761,7 @@ var segmentMinimumLength = 300,
 					self.polygon.points[1].x = angleDiff + radius * Math.cos(avgAngle * degToRad);
 					self.polygon.points[1].y = absAngleDiff + radius * Math.sin(avgAngle * degToRad);
 					self.polygon.points[1].z = self.startPoint.z;
-					avgAngle = 2;
+					pointIndex = 2;
 				}
 			} else {
 				self.polygon.points[0].x = self.startPoint.x + self.width / 2 * Math.cos(right * degToRad);
@@ -3756,7 +3770,7 @@ var segmentMinimumLength = 300,
 				self.polygon.points[1].x = self.startPoint.x + self.width / 2 * Math.cos(left * degToRad);
 				self.polygon.points[1].y = self.startPoint.y + self.width / 2 * Math.sin(left * degToRad);
 				self.polygon.points[1].z = self.startPoint.z;
-				avgAngle = 2;
+				pointIndex = 2;
 			}
 
 			if (self.nextSegment) {
@@ -3765,60 +3779,60 @@ var segmentMinimumLength = 300,
 				absAngleDiff = Math.abs(left);
 
 				if (45 < absAngleDiff) {
-					self.polygon.setVerticesLength(avgAngle + 2);
+					self.polygon.setVerticesLength(pointIndex + 2);
 					right2 = (myAngle + right2) / 2;
 					right = self.width / 2 / Math.cos((myAngle + 90 - right2) * degToRad);
-					self.polygon.points[avgAngle].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
-					self.polygon.points[avgAngle].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
-					self.polygon.points[avgAngle].z = self.endPoint.z;
-					self.polygon.points[avgAngle + 1].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
-					self.polygon.points[avgAngle + 1].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
-					self.polygon.points[avgAngle + 1].z = self.endPoint.z;
+					self.polygon.points[pointIndex].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
+					self.polygon.points[pointIndex].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
+					self.polygon.points[pointIndex].z = self.endPoint.z;
+					self.polygon.points[pointIndex + 1].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
+					self.polygon.points[pointIndex + 1].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
+					self.polygon.points[pointIndex + 1].z = self.endPoint.z;
 				} else if (30 < absAngleDiff) {
 					self.polygon.setVerticesLength(avgAngle + 3);
 					right2 = (myAngle + right2) / 2;
 					right = self.width / 2 / Math.cos((myAngle + 90 - right2) * degToRad);
-					self.polygon.points[avgAngle].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
-					self.polygon.points[avgAngle].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
-					self.polygon.points[avgAngle].z = self.endPoint.z;
-					self.polygon.points[avgAngle + 2].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
-					self.polygon.points[avgAngle + 2].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
-					self.polygon.points[avgAngle + 2].z = self.endPoint.z;
+					self.polygon.points[pointIndex].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
+					self.polygon.points[pointIndex].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
+					self.polygon.points[pointIndex].z = self.endPoint.z;
+					self.polygon.points[pointIndex + 2].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
+					self.polygon.points[pointIndex + 2].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
+					self.polygon.points[pointIndex + 2].z = self.endPoint.z;
 					right = 1 - (absAngleDiff - 30) / 15;
 					right2 = (myAngle + right2) / 2 + 90;
 					180 < right2 && (right2 -= 360);
 					right *= self.width / 2 / Math.cos((right2 - (myAngle + 90)) * degToRad);
 					if (0 < left) {
-						self.polygon.points[avgAngle + 1].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
-						self.polygon.points[avgAngle + 1].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
+						self.polygon.points[pointIndex + 1].x = self.endPoint.x - right * Math.cos(right2 * degToRad);
+						self.polygon.points[pointIndex + 1].y = self.endPoint.y - right * Math.sin(right2 * degToRad);
 					} else {
-						self.polygon.points[avgAngle + 1].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
-						self.polygon.points[avgAngle + 1].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
+						self.polygon.points[pointIndex + 1].x = self.endPoint.x + right * Math.cos(right2 * degToRad);
+						self.polygon.points[pointIndex + 1].y = self.endPoint.y + right * Math.sin(right2 * degToRad);
 					}
-					self.polygon.points[avgAngle + 1].z = self.startPoint.z
+					self.polygon.points[pointIndex + 1].z = self.startPoint.z
 				} else {
-					self.polygon.setVerticesLength(avgAngle + 2);
+					self.polygon.setVerticesLength(pointIndex + 2);
 					right2 = (myAngle + right2) / 2 + 90;
 					180 < right2 && (right2 -= 360);
 					right = self.width / 2 / Math.cos((right2 - (myAngle + 90)) * degToRad);
 					right2 = self.endPoint.x + 0.5 * Math.cos(myAngle * degToRad);
 					myAngle = self.endPoint.y + 0.5 * Math.sin(myAngle * degToRad);
 					left = self.endPoint.z;
-					self.polygon.points[avgAngle].x = right2 - right * Math.cos(right2 * degToRad);
-					self.polygon.points[avgAngle].y = myAngle - right * Math.sin(right2 * degToRad);
-					self.polygon.points[avgAngle].z = left;
-					self.polygon.points[avgAngle + 1].x = right2 + right * Math.cos(right2 * degToRad);
-					self.polygon.points[avgAngle + 1].y = myAngle + right * Math.sin(right2 * degToRad);
-					self.polygon.points[avgAngle + 1].z = left;
+					self.polygon.points[pointIndex].x = right2 - right * Math.cos(right2 * degToRad);
+					self.polygon.points[pointIndex].y = myAngle - right * Math.sin(right2 * degToRad);
+					self.polygon.points[pointIndex].z = left;
+					self.polygon.points[pointIndex + 1].x = right2 + right * Math.cos(right2 * degToRad);
+					self.polygon.points[pointIndex + 1].y = myAngle + right * Math.sin(right2 * degToRad);
+					self.polygon.points[pointIndex + 1].z = left;
 				}
 			} else {
-				self.polygon.setVerticesLength(avgAngle + 2);
-				self.polygon.points[avgAngle].x = self.endPoint.x + self.width / 2 * Math.cos(right2 * degToRad);
-				self.polygon.points[avgAngle].y = self.endPoint.y + self.width / 2 * Math.sin(right2 * degToRad);
-				self.polygon.points[avgAngle].z = self.endPoint.z;
-				self.polygon.points[avgAngle + 1].x = self.endPoint.x + self.width / 2 * Math.cos(right2 * degToRad);
-				self.polygon.points[avgAngle + 1].y = self.endPoint.y + self.width / 2 * Math.sin(right2 * degToRad);
-				self.polygon.points[avgAngle + 1].z = self.endPoint.z;
+				self.polygon.setVerticesLength(pointIndex + 2);
+				self.polygon.points[pointIndex].x = self.endPoint.x + self.width / 2 * Math.cos(right2 * degToRad);
+				self.polygon.points[pointIndex].y = self.endPoint.y + self.width / 2 * Math.sin(right2 * degToRad);
+				self.polygon.points[pointIndex].z = self.endPoint.z;
+				self.polygon.points[pointIndex + 1].x = self.endPoint.x + self.width / 2 * Math.cos(right2 * degToRad);
+				self.polygon.points[pointIndex + 1].y = self.endPoint.y + self.width / 2 * Math.sin(right2 * degToRad);
+				self.polygon.points[pointIndex + 1].z = self.endPoint.z;
 			}
 
 		};

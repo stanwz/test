@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="scripts/vendor/pixi.js"></script>
+</head>
+<body>
+<script>
+    var renderer = PIXI.autoDetectRenderer(window.innerWidth * .8, window.innerHeight * .8);
+
+    document.body.appendChild(renderer.view);
+
+    var stage = new PIXI.Container();
+
+    var polygon = new PIXI.Graphics();
+    var polygon2 = new PIXI.Graphics();
+    var polygon3 = new PIXI.Graphics();
+    stage.addChild(polygon);
+    stage.addChild(polygon2);
+    stage.addChild(polygon3);
+
+    function getCoordinate(min, max, progress) {
+        return min + (max - min) * progress;
+    }
+
+    requestAnimationFrame(loopPolygon1);
+
+    var duration = 6000, start;
+
+    function loopPolygon1(time) {
+        if (!start) {
+            start = time;
+        }
+        var elapsed = (time - start) % duration;
+
+        var progress = Math.sin(elapsed / duration * Math.PI);
+
+        polygon.clear();
+        polygon.beginFill(0x2CA1D5);
+        polygon.drawPolygon([
+            getCoordinate(150, 200, progress),getCoordinate(100, 600, progress),
+            getCoordinate(700, 600, progress),getCoordinate(100, 300, progress),
+            getCoordinate(700, 720, progress),getCoordinate(150, 300, progress),
+            getCoordinate(150, 250, progress),getCoordinate(150, 650, progress)
+        ]);
+        polygon.endFill();
+
+
+        polygon2.clear();
+        polygon2.beginFill(0x66CCFF);
+        polygon2.drawPolygon([
+            getCoordinate(700, 600, progress),getCoordinate(100, 300, progress),
+            getCoordinate(1250, 1000, progress),getCoordinate(100, 600, progress),
+            getCoordinate(1250, 1100, progress),getCoordinate(150, 600, progress),
+            getCoordinate(700, 720, progress),getCoordinate(150, 300, progress)
+        ]);
+        polygon2.endFill();
+
+        polygon3.clear();
+        polygon3.beginFill(0x2CA1D5);
+        polygon3.drawPolygon([
+            getCoordinate(1250, 1000, progress),getCoordinate(100, 600, progress),
+            getCoordinate(1550, 1200, progress),getCoordinate(100, 300, progress),
+            getCoordinate(1550, 1300, progress),getCoordinate(150, 300, progress),
+            getCoordinate(1250, 1100, progress),getCoordinate(150, 600, progress)
+        ]);
+        polygon3.endFill();
+
+        renderer.render(stage);
+        requestAnimationFrame(loopPolygon1);
+    }
+    //    stage.vx = 0;
+    //    stage.vy = 0;
+
+
+    //    loop();
+    //
+    //    function loop(){
+    //        requestAnimationFrame(loop);
+    //        play();
+    //        renderer.render(stage);
+    //    }
+    //
+    //    function play() {
+    //        stage.x += stage.vx;
+    //        stage.y += stage.vy;
+    //    }
+    //
+    //    var left = keyboard(37);
+    //    var up = keyboard(38);
+    //    var right = keyboard(39);
+    //    var down = keyboard(40);
+    //
+    //    //Left arrow key `press` method
+    //    left.press = function() {
+    //        //Change the cat's velocity when the key is pressed
+    //        stage.vx = -5;
+    //        stage.vy = 0;
+    //    };
+    //
+    //    //Left arrow key `release` method
+    //    left.release = function() {
+    //        //If the left arrow has been released, and the right arrow isn't down,
+    //        //and the cat isn't moving vertically:
+    //        //Stop the cat
+    //        if (!right.isDown && stage.vy === 0) {
+    //            stage.vx = 0;
+    //        }
+    //    };
+    //
+    //    //Up
+    //    up.press = function() {
+    //        stage.vy = -5;
+    //        stage.vx = 0;
+    //    };
+    //    up.release = function() {
+    //        if (!down.isDown && stage.vx === 0) {
+    //            stage.vy = 0;
+    //        }
+    //    };
+    //
+    //    //Right
+    //    right.press = function() {
+    //        stage.vx = 5;
+    //        stage.vy = 0;
+    //    };
+    //    right.release = function() {
+    //        if (!left.isDown && stage.vy === 0) {
+    //            stage.vx = 0;
+    //        }
+    //    };
+    //
+    //    //Down
+    //    down.press = function() {
+    //        stage.vy = 5;
+    //        stage.vx = 0;
+    //    };
+    //    down.release = function() {
+    //        if (!up.isDown && stage.vx === 0) {
+    //            stage.vy = 0;
+    //        }
+    //    };
+    //
+    //    function keyboard(keyCode) {
+    //        var key = {};
+    //        key.code = keyCode;
+    //        key.isDown = false;
+    //        key.isUp = true;
+    //        key.press = undefined;
+    //        key.release = undefined;
+    //
+    //        key.downHandler = function(event){
+    //            if (event.keyCode === key.code) {
+    //                if (key.isUp && key.press) key.press();
+    //                key.isDown = true;
+    //                key.isUp = false;
+    //            }
+    ////            event.preventDefault();
+    //        };
+    //
+    //        key.upHandler = function(event){
+    //            if (event.keyCode === key.code) {
+    //                if (key.isDown && key.release) key.release();
+    //                key.isDown = false;
+    //                key.isUp = true;
+    //            }
+    ////            event.preventDefault();
+    //        };
+    //
+    //        //Attach event listeners
+    //        window.addEventListener(
+    //                "keydown", key.downHandler.bind(key), false
+    //        );
+    //        window.addEventListener(
+    //                "keyup", key.upHandler.bind(key), false
+    //        );
+    //        return key;
+    //    }
+
+</script>
+</body>
+</html>

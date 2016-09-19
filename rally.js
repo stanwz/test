@@ -2499,7 +2499,7 @@ SimplexNoise.prototype.noise3d = function(a, d, f) {
 	return 32 * (g + c + h + f)
 };
 var SimplexStepper = function(step) {
-	new SimplexNoise;
+
 	var simplexNoise = new SimplexNoise,
 		count = 0,
 		totalSteps = 0,
@@ -2535,46 +2535,46 @@ var WeightOption = {
 		this.power = 1;
 		this.rightModifier = this.leftModifier = WeightOption.NEUTRAL;
 		this.random = function() {
-			var a = Math.random();
-			return self.weightedValue(a)
+			var random = Math.random();
+			return self.weightedValue(random)
 		};
-		this.weightedValue = function(a) {
+		this.weightedValue = function(random) {
 
 			if (self.leftModifier == WeightOption.NEUTRAL) {
 				if (self.rightModifier == WeightOption.NEUTRAL) {
-					return a;
+					return random;
 				} else {
 					if (self.rightModifier == WeightOption.STRONGER) {
-						return 1 - Math.pow(1 - a, self.power);
+						return 1 - Math.pow(1 - random, self.power);
 					} else {
-						return 1 - Math.pow(1 - a, 1 / self.power);
+						return 1 - Math.pow(1 - random, 1 / self.power);
 					}
 				}
 			}
 
 			if (self.rightModifier == WeightOption.NEUTRAL) {
 				if (self.leftModifier == WeightOption.STRONGER){
-					return Math.pow(a, self.power);
+					return Math.pow(random, self.power);
 				} else {
-					return Math.pow(a, 1 / self.power);
+					return Math.pow(random, 1 / self.power);
 				}
 			}
 
-			if (0.5 > a) {
-				a *= 2;
+			if (0.5 > random) {
+				random *= 2;
 				if (self.leftModifier == WeightOption.STRONGER) {
-					return  Math.pow(a, self.power) / 2;
+					return  Math.pow(random, self.power) / 2;
 				} else {
-					return Math.pow(a, 1 / self.power) / 2;
+					return Math.pow(random, 1 / self.power) / 2;
 				}
 			}
-			a = 2 * (a - 0.5);
-			a = 1 - a;
+			random = 2 * (random - 0.5);
+			random = 1 - random;
 
 			if (self.rightModifier == WeightOption.STRONGER) {
-				return (1 - Math.pow(a, self.power)) / 2 + 0.5;
+				return (1 - Math.pow(random, self.power)) / 2 + 0.5;
 			} else {
-				return (1 - Math.pow(a, 1 / self.power)) / 2 + 0.5;
+				return (1 - Math.pow(random, 1 / self.power)) / 2 + 0.5;
 			}
 
 		};

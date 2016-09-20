@@ -20,8 +20,8 @@ define('settings',['pixi'],function(PIXI){
 	};
 
 	settings.dimensions = {
-		width: window.innerWidth * .9,
-		height: window.innerHeight * .8
+		width: window.innerWidth - 15,
+		height: window.innerHeight - 20
 	};
 
 	settings.renderer = PIXI.autoDetectRenderer(settings.dimensions.width, settings.dimensions.height);

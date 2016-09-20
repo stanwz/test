@@ -7,11 +7,13 @@ define([
 
 		var self = this;
 		self.drivePoint = 0.5;
+		self.idleSpeed = 0.2;
+		self.speed = self.idleSpeed;
 
-		var currentSegment;
+		var lastSegment;
 
 		function getSegmentFromPullPoint(pullPoint) {
-			for (var segment = currentSegment; segment;) {
+			for (var segment = lastSegment; segment;) {
 				if (segment.endPoint.x / settings.dimensions.width > pullPoint || !segment.nextSegment) {
 					return segment;
 				}
@@ -27,13 +29,11 @@ define([
 
 		self._construct = function() {
 			self.createSegments();
-			self.draw();
-
 			requestAnimationFrame(self.advance);
 		};
 
 		self.advance = function() {
-			// self.move(self.speed);
+			self.move(self.speed);
 			var segmentBeingPulled = getSegmentFromPullPoint(self.drivePoint);
 			advanceSegment(segmentBeingPulled, settings.anchorPoints.CENTER);
 			for (var segment = segmentBeingPulled.previousSegment; segment;) {
@@ -44,29 +44,41 @@ define([
 				advanceSegment(segment, settings.anchorPoints.START);
 				segment = segment.nextSegment;
 			}
-			// for (segment = currentSegment; segment;) {
-			// 	segment.resetPolygon();
-			// 	segment = segment.nextSegment;
-			// }
+
+			for (segment = lastSegment; segment;) {
+				segment.resetPolygon();
+				segment = segment.previousSegment;
+			}
 			self.draw();
 			requestAnimationFrame(self.advance);
 		};
 
 		self.createSegments = function () {
 
-			for (currentSegment = new RibbonSegment(); currentSegment.endPoint.x < settings.dimensions.width;) {
-				currentSegment = new RibbonSegment(currentSegment);
+			for (lastSegment = new RibbonSegment(); lastSegment.endPoint.x < settings.dimensions.width + 600;) {
+				lastSegment = new RibbonSegment(lastSegment);
 			}
 		};
 
 		self.draw = function () {
-			for (var segment = currentSegment; segment; segment = segment.nextSegment) {
+			for (var segment = lastSegment; segment; segment = segment.nextSegment) {
 				segment.draw();
 			}
 
-			for (segment = currentSegment.previousSegment; segment; segment = segment.previousSegment) {
+			for (segment = lastSegment.previousSegment; segment; segment = segment.previousSegment) {
 				segment.draw();
 			}
+		};
+
+		self.move = function(amount) {
+			for (var segment = lastSegment; segment;) {
+				segment.move(amount);
+				segment = segment.previousSegment;
+			}
+			// if (self.canDestruct) {
+			// 	self.destroySegments();
+			// }
+			// self.createSegments()
 		};
 
 		self._construct();

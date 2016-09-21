@@ -55,9 +55,9 @@ function Ajax(a) {
 			})
 		}
 };
-var Tween = function(a, d, f) {
-	this.ease = function(a, g, f, d) {
-		return f * a / d + g
+var Tween = function(obj, duration, options) {
+	this.ease = function(elapsedTime, start, distance, totalDuration) {
+		return distance * elapsedTime / totalDuration + start;
 	};
 	this.onComplete = function() {};
 	this.onUpdate = function() {};
@@ -65,41 +65,68 @@ var Tween = function(a, d, f) {
 	this.prefix = this.units = "";
 	this.delay = 0;
 	this.begin = {};
-	var g = this;
+	var self = this;
 	this.__construct__ = function() {
-		this.time = d;
-		this.obj = a;
+		this.time = duration;
+		this.obj = obj;
 		this.id = Tween.getId();
 		Tween.tweens[this.id] = this;
-		f.onComplete && (this.onComplete = f.onComplete, delete f.onComplete);
-		f.onUpdate && (this.onUpdate = f.onUpdate, delete f.onUpdate);
-		f.ease && (this.ease = f.ease, delete f.ease);
-		f.delay && (this.delay = f.delay,
-			delete f.delay);
-		for (prop in f) this.begin[prop] = a[prop];
+		if (options.onComplete) {
+			this.onComplete = options.onComplete;
+			delete options.onComplete;
+		}
+		if (options.onUpdate) {
+			this.onUpdate = options.onUpdate;
+			delete options.onUpdate;
+		}
+		if (options.ease) {
+			this.ease = options.ease;
+			delete options.ease;
+		}
+		if (options.delay) {
+			this.delay = options.delay;
+			delete options.delay;
+		}
+		for (var prop in options) {
+			this.begin[prop] = obj[prop];
+		}
 		this.playTimeout = setTimeout(function() {
-			g.play()
-		}, this.delay)
+			self.play();
+		}, this.delay);
 	};
 	this.play = function() {
-		Tween.tweens[a] || (Tween.tweens[a] = []);
-		Tween.tweens[a].push(this);
+		if (!Tween.tweens[obj]) {
+			Tween.tweens[obj] = [];
+		}
+		Tween.tweens[obj].push(this);
 		this.endAt = (new Date).getTime() + this.time;
 		GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, this.mechanism)
 	};
 	this.stop = function() {
-		clearTimeout(g.playTimeout);
-		GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, g.mechanism);
-		g.stopped = !0
+		clearTimeout(self.playTimeout);
+		GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, self.mechanism);
+		self.stopped = true;
 	};
 	this.mechanism = function() {
-		if (g.stopped) return !1;
-		var a = g.endAt -
-			(new Date).getTime();
-		0 >= a ? (g.stop(), g.advanceFrame(1, 1), g.onUpdate(), g.onComplete()) : (g.advanceFrame(g.time - a, g.time), g.onUpdate())
+		if (self.stopped) return false;
+		var a = self.endAt - (new Date).getTime();
+		if (a <= 0) {
+			self.stop();
+			self.advanceFrame(1, 1);
+			self.onUpdate();
+			self.onComplete();
+		} else {
+			self.advanceFrame(self.time - a, self.time);
+			self.onUpdate();
+		}
 	};
-	this.advanceFrame = function(c, g) {
-		for (prop in f) b = this.begin[prop], e = f[prop], m = e - b, a[prop] = this.ease(c, b, m, g)
+	this.advanceFrame = function(elapsedTime, totalDuration) {
+		for (var prop in options) {
+			var startVal = this.begin[prop];
+			var endVal = options[prop];
+			var distance = endVal - startVal;
+			obj[prop] = this.ease(elapsedTime, startVal, distance, totalDuration);
+		}
 	};
 	this.__construct__()
 };
@@ -898,7 +925,7 @@ R.Pagination = function() {
 R.Badge = function() {
 	var self = this,
 		site = this.site = null,
-		config = {
+		tweenObj = {
 			value: 0
 		};
 	this.html = {
@@ -962,14 +989,14 @@ R.Badge = function() {
 		};
 	this.tilt = function(value) {
 		site && site.stop();
-		site = new Tween(config, 500, {
+		site = new Tween(tweenObj, 500, {
 			ease: Ease.easeOut.sine,
 			value: value,
 			onUpdate: function() {
-				R.setTransform(self.html.siteBadgePerspectiveDiv, "rotateY(" + config.value + "deg)")
+				R.setTransform(self.html.siteBadgePerspectiveDiv, "rotateY(" + tweenObj.value + "deg)")
 			},
 			onComplete: function() {
-				0 == config.value && R.setTransform(self.html.siteBadgePerspectiveDiv, "")
+				0 == tweenObj.value && R.setTransform(self.html.siteBadgePerspectiveDiv, "")
 			}
 		})
 	};
@@ -980,20 +1007,20 @@ R.Badge = function() {
 				this.animating = !0;
 				var duration = quick ? 200 : 400;
 				R.setTransition(this.html.siteBadgePerspectiveDiv, "none");
-				new Tween(config,
+				new Tween(tweenObj,
 					duration, {
 						ease: Ease.easeIn.sine,
 						value: 90 * c,
 						onUpdate: function() {
-							R.setTransform(self.html.siteBadgePerspectiveDiv, "rotateY(" + config.value + "deg)")
+							R.setTransform(self.html.siteBadgePerspectiveDiv, "rotateY(" + tweenObj.value + "deg)")
 						},
 						onComplete: function() {
-							new Tween(config, duration, {
+							new Tween(tweenObj, duration, {
 								ease: Ease.easeOut.sine,
 								value: 0,
 								delay: 50,
 								onUpdate: function() {
-									R.setTransform(self.html.siteBadgePerspectiveDiv, "rotateY(" + -1 * config.value + "deg)")
+									R.setTransform(self.html.siteBadgePerspectiveDiv, "rotateY(" + -1 * tweenObj.value + "deg)")
 								},
 								onComplete: function() {
 									R.setTransform(self.html.siteBadgePerspectiveDiv, "");
@@ -1399,17 +1426,17 @@ R.Site = function() {
 			var l = this.getColorTransitions(k, f),
 				n = window.innerWidth,
 				p = 0,
-				r = {
+				tweenObj = {
 					value: 0
 				};
-			new Tween(r, 860, {
+			new Tween(tweenObj, 860, {
 				value: 1,
 				ease: Ease.easeInOut.sine,
 				onUpdate: function() {
-					R.setTransform(self.html.siteHeadPageAreaDiv, "translate3d(" + 100 * -r.value * c + "%,0,0)");
-					self.ribbon.setColors(l.primary.getColorAtValue(r.value), l.secondary.getColorAtValue(r.value));
-					self.ribbon.move(1.2 * (r.value - p) * c * n);
-					p = r.value
+					R.setTransform(self.html.siteHeadPageAreaDiv, "translate3d(" + 100 * -tweenObj.value * c + "%,0,0)");
+					self.ribbon.setColors(l.primary.getColorAtValue(tweenObj.value), l.secondary.getColorAtValue(tweenObj.value));
+					self.ribbon.move(1.2 * (tweenObj.value - p) * c * n);
+					p = tweenObj.value
 				},
 				onComplete: function() {
 					R.setTransform(self.html.siteHeadPageAreaDiv, "");
@@ -1569,14 +1596,14 @@ R.Site = function() {
 			}
 			R.startRendering();
 			this.animating = !0;
-			var f = {
+			var tweenObj = {
 				value: window.pageYOffset
 			};
-			new Tween(f, 460, {
+			new Tween(tweenObj, 460, {
 				value: 0,
 				ease: Ease.easeInOut.sine,
 				onUpdate: function() {
-					window.scrollTo(0, f.value)
+					window.scrollTo(0, tweenObj.value)
 				},
 				onComplete: function() {
 					setTimeout(function() {
@@ -1615,17 +1642,17 @@ R.Site.prototype.menuLinkClick = function(a) {
 			d != f.pageIndex && f.animateToHeaderIndex(d, g, !0);
 			var a = window.innerHeight,
 				h = !1,
-				k = {
+				tweenObj = {
 					val: 1
 				};
-			new Tween(k, 860, {
+			new Tween(tweenObj, 860, {
 				val: 0,
 				ease: Ease.easeOut.sine,
 				onUpdate: function() {
-					!h && k.val * a > f.navHeight && (f.nav.useDarkIcons(), h = !0);
-					f.ribbon.verticalPosition = 0.5 * (1 - k.val);
-					f.ribbon.positionDamping = k.val;
-					f.ribbon.straightenStrength = k.val;
+					!h && tweenObj.val * a > f.navHeight && (f.nav.useDarkIcons(), h = !0);
+					f.ribbon.verticalPosition = 0.5 * (1 - tweenObj.val);
+					f.ribbon.positionDamping = tweenObj.val;
+					f.ribbon.straightenStrength = tweenObj.val;
 					f.ribbon.straighten()
 				},
 				onComplete: function() {}
@@ -1675,13 +1702,13 @@ R.Site.prototype.animateRibbonToCenter = function(a) {
 	var d = this,
 		f = window.innerHeight,
 		g = !1,
-		c = {
+		tweenObj = {
 			val: 1
 		};
-	new Tween(c, 400, {
+	new Tween(tweenObj, 400, {
 		val: 0,
 		onUpdate: function() {
-			var a = c.val;
+			var a = tweenObj.val;
 			!g && a * f > d.navHeight && (d.nav.useDarkIcons(), g = !0);
 			a = Math.min(a, 1);
 			d.ribbon.verticalPosition = 0.5 * (1 - a);
@@ -1696,30 +1723,37 @@ R.Site.prototype.animateRibbonToCenter = function(a) {
 		}
 	})
 };
-R.Site.prototype.animateRibbonToTop = function(a) {
-	this.ribbon.canDestruct = !1;
-	this.animating = !0;
-	var d = this,
-		f = window.innerHeight,
-		g = !1,
-		c = {
-			val: 0
+R.Site.prototype.animateRibbonToTop = function(callback) {
+	this.ribbon.canDestruct = false;
+	this.animating = true;
+	var self = this,
+		windowInnerHeight = window.innerHeight,
+		falseVal = false,
+		tweenObj = {
+			val: 0 // startingVal
 		};
-	new Tween(c, 400, {
-		val: 1,
+	new Tween(tweenObj, 400, {
+		val: 1, //endVal
 		onUpdate: function() {
-			var a = c.val;
-			!g && (1 - a) * f < d.navHeight && (d.nav.useLightIcons(), g = !0);
-			a = Math.min(a, 1);
-			d.ribbon.verticalPosition = 0.5 * (1 - a);
-			d.ribbon.positionDamping = a;
-			d.ribbon.straightenStrength = a;
-			d.ribbon.straighten()
+			var val = tweenObj.val;
+			if (!falseVal) {
+				if ((1 - val) * windowInnerHeight < self.navHeight) {
+					self.nav.useLightIcons();
+					falseVal = true;
+				}
+			}
+			val = Math.min(val, 1);
+			self.ribbon.verticalPosition = 0.5 * (1 - val);
+			self.ribbon.positionDamping = val;
+			self.ribbon.straightenStrength = val;
+			self.ribbon.straighten();
 		},
 		onComplete: function() {
-			d.ribbon.canDestruct = !0;
-			d.animating = !1;
-			a && a()
+			self.ribbon.canDestruct = true;
+			self.animating = false;
+			if (callback) {
+				callback();
+			}
 		}
 	})
 };
@@ -3144,7 +3178,7 @@ var DrawStyle = {
 			totalSegmentLength = 0,
 			lengthMultiplier = 1,
 			segmentPulled = null,
-			totalSegmentLEngthAtLastPull = 0;
+			totalSegmentLengthAtLastPull = 0;
 		this.yOffsetForce = this.yOffset = 0;
 		self.primaryColor = null;
 		var flat3dDrawer = self.secondaryColor = null,
@@ -3254,7 +3288,7 @@ var DrawStyle = {
 				pullStrength = 1;
 				if (self.pullSpread > 0) {
 					// the further away from the pull, the weak the pull strength
-					pullStrength = seg.distanceFromSegment(segment, SearchDirection.LEFT) / totalSegmentLEngthAtLastPull;
+					pullStrength = seg.distanceFromSegment(segment, SearchDirection.LEFT) / totalSegmentLengthAtLastPull;
 					var doublePullSpread = 2 * self.pullSpread,
 						quadrupleSpread = 2 * doublePullSpread;
 
@@ -3275,7 +3309,7 @@ var DrawStyle = {
 				seg.width = self.width;
 				pullStrength = 1;
 				if (self.pullSpread > 0) {
-					pullStrength = seg.distanceFromSegment(segment, SearchDirection.RIGHT) / totalSegmentLEngthAtLastPull;
+					pullStrength = seg.distanceFromSegment(segment, SearchDirection.RIGHT) / totalSegmentLengthAtLastPull;
 					doublePullSpread = 2 * self.pullSpread;
 					quadrupleSpread = 2 * doublePullSpread;
 
@@ -3296,7 +3330,7 @@ var DrawStyle = {
 		};
 		self.setPullPoint = function(pullPoint) {
 			segmentPulled = getSegmentFromPullPoint(pullPoint);
-			totalSegmentLEngthAtLastPull = totalSegmentLength
+			totalSegmentLengthAtLastPull = totalSegmentLength;
 		};
 		self.clearPullPoint = function() {
 			segmentPulled = null
@@ -4189,38 +4223,47 @@ var RibbonPullDirection = {
 				onComplete: function(a) {}
 			})
 		};
-		this.animatePull = function(d, g) {
-			g || (g = new Color(255 * Math.random(), 255 * Math.random(), 255 * Math.random()));
-			var c, h, k;
-			d == RibbonPullDirection.RIGHT ? (c = 0, h = 50, k = Math.abs(ribbon.idleSpeed)) :
-				(c = 1, h = -50, k = -Math.abs(ribbon.idleSpeed));
-			var l = new ColorTransition(ribbon.primaryColor.clone(), g),
-				n = new ColorTransition(ribbon.secondaryColor.clone(), ribbon.secondaryColorFromPrimaryColor(g));
-			ribbon.canDestruct = !1;
-			ribbon.setPullPoint(c);
-			var p = ribbon.speed,
-				r = {
+		this.animatePull = function(pullDirection, color) {
+			if (!color) {
+				color = new Color(255 * Math.random(), 255 * Math.random(), 255 * Math.random());
+			}
+			var pullPoint, newSpeed, newIdleSpeed;
+			if (pullDirection == RibbonPullDirection.RIGHT) {
+				pullPoint = 0;
+				newSpeed = 50;
+				newIdleSpeed = Math.abs(ribbon.idleSpeed);
+			} else {
+				pullPoint = 1;
+				newSpeed = -50;
+				newIdleSpeed = -Math.abs(ribbon.idleSpeed);
+			}
+			var newColorPrimary = new ColorTransition(ribbon.primaryColor.clone(), color),
+				newColorSecondary = new ColorTransition(ribbon.secondaryColor.clone(), ribbon.secondaryColorFromPrimaryColor(color));
+			ribbon.canDestruct = false;
+			ribbon.setPullPoint(pullPoint);
+			var currentSpeed = ribbon.speed,
+				tweenObj = {
 					value: 0
 				};
-			new Tween(r, 750, {
+			new Tween(tweenObj, 750, {
 				value: 1,
 				ease: Ease.easeInOut.sine,
-				onUpdate: function(c) {
-					ribbon.pullStrength = 0.3 * r.value;
-					ribbon.pullSpread = r.value;
+				onUpdate: function() {
+					ribbon.pullStrength = 0.3 * tweenObj.value;
+					ribbon.pullSpread = tweenObj.value;
 					ribbon.straighten();
-					ribbon.speed = (h - p) * Math.min(r.value / 0.3, 1) + p
+					ribbon.speed = (newSpeed - currentSpeed) * Math.min(tweenObj.value / 0.3, 1) + currentSpeed
 				},
-				onComplete: function(c) {
+				onComplete: function() {
 					ribbon.destroySegments();
 					ribbon.setPullPoint(0.5);
-					new Tween(r, 1150, {
+					new Tween(tweenObj, 1150, {
 						delay: 50,
 						value: 0,
 						ease: Ease.easeOut.back,
-						onUpdate: function(c) {
-							ribbon.pullStrength = 0.3 * r.value;
-							ribbon.pullSpread = r.value;
+						onUpdate: function() {
+							ribbon.pullStrength = 0.3 * tweenObj.value;
+							ribbon.pullSpread = tweenObj.value;
 							ribbon.straighten()
 						}
 					});
@@ -4231,24 +4274,24 @@ var RibbonPullDirection = {
 						delay: 50,
 						value: 0,
 						ease: Ease.easeOut.cubic,
-						onUpdate: function(c) {
-							ribbon.speed = (h - k) * d.value + k
+						onUpdate: function() {
+							ribbon.speed = (newSpeed - newIdleSpeed) * d.value + newIdleSpeed
 						},
-						onComplete: function(c) {
+						onComplete: function() {
 							ribbon.canDestruct = !0;
 							ribbon.clearPullPoint()
 						}
 					})
 				}
 			});
-			var q = {
+			var tweenObj = {
 				value: 0
 			};
-			new Tween(q, 2050, {
+			new Tween(tweenObj, 2050, {
 				value: 1,
 				ease: Ease.easeInOut.cubic,
-				onUpdate: function(c) {
-					ribbon.setColors(l.getColorAtValue(q.value), n.getColorAtValue(q.value))
+				onUpdate: function() {
+					ribbon.setColors(newColorPrimary.getColorAtValue(tweenObj.value), newColorSecondary.getColorAtValue(tweenObj.value))
 				}
 			})
 		};

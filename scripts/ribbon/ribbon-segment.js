@@ -28,6 +28,14 @@ define([
 		}
 	}
 
+	function rotateAngleClockwiseBy90(avgAngle) {
+		avgAngle += 90;
+		if (avgAngle > 180) {
+			avgAngle -= 360;
+		}
+		return avgAngle;
+	}
+
 	function Point() {
 		this.x = this.y = 0;
 	}
@@ -65,20 +73,19 @@ define([
 		self.startPoint = {};
 		self.endPoint = {};
 		self.backface = null;
+		self.color = 0xE45B5B;
 		self.graphic = null;
 		self.polygon = new Polygon();
 		self.simplexStepper = new SimplexStepper(Math.random());
-		self.straightenStrength = 0;
+		self.straightenStrength = 0.6;
 
-		self.fullRibbonWidth = 110;
-		self.collapsedRibbonWidth = 70;
+		self.fullRibbonWidth = 100;
+		self.collapsedRibbonWidth = 60;
 		self.width = self.fullRibbonWidth;
 
 		self._construct = function(segment) {
 
 			self.graphic = new PIXI.Graphics();
-
-			settings.stage.addChild(self.graphic);
 
 			if (segment) {
 				self.previousSegment = segment;
@@ -87,10 +94,11 @@ define([
 				self.originalStartPoint.y = self.startPoint.y = segment.originalEndPoint.y;
 				self.backface = !segment.backface;
 				if(self.backface) {
+					self.color = 0xB54646;
 					baseAngleUnit /= 2;
 				}
 			} else {
-				self.originalStartPoint.x = self.startPoint.x = -600;
+				self.originalStartPoint.x = self.startPoint.x = -200;
 				self.originalStartPoint.y = self.startPoint.y = settings.dimensions.height / 2;
 			}
 
@@ -190,7 +198,7 @@ define([
 
 			var graphic = self.graphic;
 			graphic.clear();
-			graphic.beginFill(self.backface ? 0xE45B5B : 0xB54646);
+			graphic.beginFill(self.color);
 
 			var points = self.polygon.points;
 			graphic.moveTo(points[0].x, points[0].y);
@@ -208,7 +216,7 @@ define([
 			return (self.primaryAngle + movedAngle) * (1 - self.straightenStrength);
 		};
 
-		this.move = function(amount) {
+		self.move = function(amount) {
 			self.startPoint.x -= amount;
 			self.endPoint.x -= amount;
 		};
@@ -230,7 +238,6 @@ define([
 
 				var avgAngle = (prevForward + forward) / 2;
 				var radius = self.width / 2 / Math.cos((leftward - avgAngle) * DegToRad);
-				var radius2 = self.width / 2 / Math.cos((avgAngle - leftward) * DegToRad);
 
 				if (absAngleDiff > 45) {
 
@@ -247,11 +254,8 @@ define([
 					self.polygon.points[2].x = self.startPoint.x + radius * Math.cos(avgAngle * DegToRad);
 					self.polygon.points[2].y = self.startPoint.y + radius * Math.sin(avgAngle * DegToRad);
 
-					avgAngle += 90;
-					if (avgAngle > 180) {
-						avgAngle -= 360;
-					}
-
+					avgAngle = rotateAngleClockwiseBy90(avgAngle);
+					var radius2 = self.width / 2 / Math.cos((avgAngle - leftward) * DegToRad);
 					radius2 *=  1 - (absAngleDiff - 30) / 15;
 
 					if(angleDiff > 0) {
@@ -264,10 +268,8 @@ define([
 					pointIndex = 3;
 
 				} else {
-					avgAngle += 90;
-					if (avgAngle > 180) {
-						avgAngle -= 360;
-					}
+					avgAngle = rotateAngleClockwiseBy90(avgAngle);
+					radius2 = self.width / 2 / Math.cos((avgAngle - leftward) * DegToRad);
 
 					var adjustedStartingX = self.startPoint.x - 0.5 * Math.cos(forward * DegToRad);
 					var adjustedStartingY = self.startPoint.y - 0.5 * Math.sin(forward * DegToRad);
@@ -296,7 +298,6 @@ define([
 				absAngleDiff = Math.abs(angleDiff);
 				avgAngle = (forward + nextForward) / 2;
 				radius = self.width / 2 / Math.cos((rightward2 - avgAngle) * DegToRad);
-				radius2 = self.width / 2 / Math.cos((avgAngle - rightward2) * DegToRad);
 
 				if (45 < absAngleDiff) {
 					self.polygon.setVerticesLength(pointIndex + 2);
@@ -308,16 +309,13 @@ define([
 				} else if (30 < absAngleDiff) {
 					self.polygon.setVerticesLength(pointIndex + 3);
 
-					self.polygon.points[pointIndex].x = self.endPoint.x - radius * Math.cos(nextForward * DegToRad);
-					self.polygon.points[pointIndex].y = self.endPoint.y - radius * Math.sin(nextForward * DegToRad);
-					self.polygon.points[pointIndex + 2].x = self.endPoint.x + radius * Math.cos(nextForward * DegToRad);
-					self.polygon.points[pointIndex + 2].y = self.endPoint.y + radius * Math.sin(nextForward * DegToRad);
+					self.polygon.points[pointIndex].x = self.endPoint.x - radius * Math.cos(avgAngle * DegToRad);
+					self.polygon.points[pointIndex].y = self.endPoint.y - radius * Math.sin(avgAngle * DegToRad);
+					self.polygon.points[pointIndex + 2].x = self.endPoint.x + radius * Math.cos(avgAngle * DegToRad);
+					self.polygon.points[pointIndex + 2].y = self.endPoint.y + radius * Math.sin(avgAngle * DegToRad);
 
-					avgAngle += 90;
-					if (180 < avgAngle) {
-						avgAngle -= 360;
-					}
-
+					avgAngle = rotateAngleClockwiseBy90(avgAngle);
+					radius2 = self.width / 2 / Math.cos((avgAngle - rightward2) * DegToRad);
 					radius2 *=  1 - (absAngleDiff - 30) / 15;
 
 					if (0 < angleDiff) {
@@ -331,10 +329,8 @@ define([
 				} else {
 					self.polygon.setVerticesLength(pointIndex + 2);
 
-					avgAngle += 90;
-					if (180 < avgAngle) {
-						avgAngle -= 360;
-					}
+					avgAngle = rotateAngleClockwiseBy90(avgAngle);
+					radius2 = self.width / 2 / Math.cos((avgAngle - rightward2) * DegToRad);
 
 					adjustedStartingX = self.endPoint.x + 0.5 * Math.cos(forward * DegToRad);
 					adjustedStartingY = self.endPoint.y + 0.5 * Math.sin(forward * DegToRad);

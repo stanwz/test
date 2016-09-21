@@ -72,7 +72,7 @@ define([
 
 		self.animateToTop = function(){
 			var obj = {value: 0};
-			new Tween(obj, 2000, {
+			new Tween(obj, 1200, {
 				value: 1,
 				ease: Ease.easeIn.sine,
 				onUpdate: function() {
@@ -87,7 +87,7 @@ define([
 
 		self.animateToBottom = function() {
 			var obj = {value: 1};
-			new Tween(obj, 2000, {
+			new Tween(obj, 1200, {
 				value: 0,
 				ease: Ease.easeIn.sine,
 				onUpdate: function() {
@@ -129,6 +129,22 @@ define([
 			});
 		};
 
+		self.destroySegments = function() {
+			for (;lastSegment.endPoint.x < -800;) {
+				// flat3dDrawer.removePolygon(lastSegment.polygon);
+				// totalSegmentLength -= currentSegment.segmentLength;
+				lastSegment = lastSegment.nextSegment;
+				lastSegment.previousSegment = null;
+			}
+
+			for (;lastSegment.startPoint.x > settings.dimensions.width + 800;) {
+				// flat3dDrawer.removePolygon(lastSegment.polygon);
+				// totalSegmentLength -= currentSegment.segmentLength;
+				lastSegment = lastSegment.previousSegment;
+				lastSegment.nextSegment = null;
+			}
+		};
+
 		self.draw = function () {
 			segments.back.forEach(function (segment) {
 				segment.draw();
@@ -144,10 +160,10 @@ define([
 				segment.move(amount);
 				segment = segment.previousSegment;
 			}
-			// if (self.canDestruct) {
-			// 	self.destroySegments();
-			// }
-			// self.createSegments()
+			if (self.canDestruct) {
+				self.destroySegments();
+			}
+			// self.createSegments();
 		};
 
 		self.setPullPoint = function(pullPoint) {

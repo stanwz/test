@@ -1335,7 +1335,7 @@ R.Site = function() {
 			var f = this.ribbon.getCurrentVerticalPosition();
 			this.ribbon.verticalPosition = f;
 			this.ribbon.positionDamping = 1;
-			this.ribbon.canDestruct = !1;
+			this.ribbon.canDestruct = false;
 			var c = window.innerHeight,
 				h = (c - self.navHeight) / c,
 				k = !1,
@@ -1358,7 +1358,7 @@ R.Site = function() {
 				onComplete: function() {
 					R.onNextFrame(function() {
 						self.setContentMode(modeContent);
-						self.ribbon.canDestruct = !0;
+						self.ribbon.canDestruct = true;
 						self.animating = !1
 					})
 				}
@@ -1387,8 +1387,8 @@ R.Site = function() {
 			this.prepareToAnimateToMasthead();
 			var g = this.ribbon.getCurrentVerticalPosition();
 			this.ribbon.verticalPosition = g;
-			this.ribbon.positionDamping = 1;
-			this.ribbon.canDestruct = !1;
+			this.ribbon.positionDamping = true;
+			this.ribbon.canDestruct = false;
 			var c = window.innerHeight,
 				d = (c - self.navHeight) / c,
 				k = !1,
@@ -1410,8 +1410,8 @@ R.Site = function() {
 				},
 				onComplete: function() {
 					self.setContentMode(modeMasthead);
-					self.ribbon.canDestruct = !0;
-					self.animating = !1
+					self.ribbon.canDestruct = false;
+					self.animating = false
 				}
 			})
 		}
@@ -1448,7 +1448,7 @@ R.Site = function() {
 					R.setTransform(self.html.siteHeadPageAreaDiv, "");
 					self.ribbon.speed = 0.3 * c;
 					self.ribbon.setPullPoint(0.5);
-					self.animating = !1;
+					self.animating = false;
 					self.updateContent();
 					self.updateHeaders()
 				}
@@ -1703,8 +1703,8 @@ R.Site.prototype.menuClosed = function() {
 	})) : this.menuOpen = this.animating = !1
 };
 R.Site.prototype.animateRibbonToCenter = function(a) {
-	this.ribbon.canDestruct = !1;
-	this.animating = !0;
+	this.ribbon.canDestruct = false;
+	this.animating = true;
 	var d = this,
 		f = window.innerHeight,
 		g = !1,
@@ -1723,8 +1723,8 @@ R.Site.prototype.animateRibbonToCenter = function(a) {
 			d.ribbon.straighten()
 		},
 		onComplete: function() {
-			d.ribbon.canDestruct = !0;
-			d.animating = !1;
+			d.ribbon.canDestruct = true;
+			d.animating = false;
 			a && a()
 		}
 	})
@@ -1836,8 +1836,8 @@ R.Site.prototype.startVerticalDragContent = function() {
 	this.prepareToAnimateToMasthead();
 	var d = this.ribbon.getCurrentVerticalPosition();
 	this.ribbon.verticalPosition = d;
-	this.ribbon.positionDamping = 1;
-	this.ribbon.canDestruct = !1;
+	this.ribbon.positionDamping = true;
+	this.ribbon.canDestruct = false;
 	this.ribbon.speed = 0;
 	var f = window.innerHeight,
 		g = !0,
@@ -1880,8 +1880,8 @@ R.Site.prototype.startVerticalDragContent = function() {
 			onComplete: function() {
 				a.setContentMode(R.Site.CONTENT_MODE_MASTHEAD);
 				a.ribbon.speed = 0.5 < Math.random() ? -0.3 : 0.3;
-				a.ribbon.canDestruct = !0;
-				a.animating = !1
+				a.ribbon.canDestruct = true;
+				a.animating = false
 			}
 		}) : new Tween(n, 460, {
 			value: -window.innerHeight,
@@ -1892,8 +1892,8 @@ R.Site.prototype.startVerticalDragContent = function() {
 			},
 			onComplete: function() {
 				a.setContentMode(R.Site.CONTENT_MODE_CONTENT);
-				a.ribbon.canDestruct = !0;
-				a.animating = !1
+				a.ribbon.canDestruct = true;
+				a.animating = false
 			}
 		})
 	}
@@ -1904,8 +1904,8 @@ R.Site.prototype.startVerticalDragMasthead = function() {
 		f = 0,
 		g = this.ribbon.getCurrentVerticalPosition();
 	this.ribbon.verticalPosition = g;
-	this.ribbon.positionDamping = 1;
-	this.ribbon.canDestruct = !1;
+	this.ribbon.positionDamping = true;
+	this.ribbon.canDestruct = false;
 	this.ribbon.speed = 0;
 	this.dragHelper.onDrag = function(c, h, k, l, n, p) {
 		R.setTransform(a.html.siteDiv, "translate3d(0," + h + "px,0)");
@@ -1943,8 +1943,8 @@ R.Site.prototype.startVerticalDragMasthead = function() {
 			onComplete: function() {
 				R.onNextFrame(function() {
 					a.setContentMode(R.Site.CONTENT_MODE_CONTENT);
-					a.ribbon.canDestruct = !1;
-					a.animating = !1
+					a.ribbon.canDestruct = false;
+					a.animating = false
 				})
 			}
 		}) : new Tween(l, 460, {
@@ -1957,8 +1957,8 @@ R.Site.prototype.startVerticalDragMasthead = function() {
 			onComplete: function() {
 				R.setTransform(a.html.siteDiv, "");
 				a.ribbon.speed = 0.5 < Math.random() ? -0.3 : 0.3;
-				a.ribbon.canDestruct = !1;
-				a.animating = !1
+				a.ribbon.canDestruct = false;
+				a.animating = false
 			}
 		})
 	}
@@ -2000,7 +2000,7 @@ R.Site.prototype.startHorizontalDragMasthead = function() {
 	c.style.left = "-100%";
 	this.colorTransitionNext = this.getColorTransitions(this.pageIndex, f);
 	this.colorTransitionPrev = this.getColorTransitions(this.pageIndex, d);
-	this.ribbon.canDestruct = !1;
+	this.ribbon.canDestruct = false;
 	var h = window.innerWidth,
 		k = 0;
 	this.dragHelper.onDrag = function(c, f, d, g, q, s) {
@@ -2053,8 +2053,8 @@ R.Site.prototype.startHorizontalDragMasthead = function() {
 			},
 			onComplete: function() {
 				R.setTransform(a.html.siteHeadPageAreaDiv, "");
-				a.ribbon.canDestruct = !0;
-				a.animating = !1;
+				a.ribbon.canDestruct = true;
+				a.animating = false;
 				a.updateContent();
 				a.updateHeaders();
 				a.ribbon.setPullPoint(0.5);
@@ -2073,8 +2073,8 @@ R.Site.prototype.startHorizontalDragMasthead = function() {
 			},
 			onComplete: function() {
 				R.setTransform(a.html.siteHeadPageAreaDiv, "");
-				a.ribbon.canDestruct = !0;
-				a.animating = !1;
+				a.ribbon.canDestruct = true;
+				a.animating = false;
 				a.updateHeaders();
 				a.ribbon.setPullPoint(0.5);
 				g && (a.ribbon.speed = 0.3 * g)
@@ -3109,10 +3109,11 @@ var Flat3dSetup = function(canvasDom, scale) {
 			polygons[depth].push(polygon)
 		}
 	};
-	this.removePolygon = function(a) {
-		for (var c = maxDepth; 0 <= c; c--)
-			if (polygons[c]) {
-				var f = polygons[c].indexOf(a); - 1 != f && polygons[c].splice(f, 1)
+	this.removePolygon = function(polygon) {
+		for (var i = maxDepth; 0 <= i; i--)
+			if (polygons[i]) {
+				var index = polygons[i].indexOf(polygon);
+				- 1 != index && polygons[i].splice(index, 1)
 			}
 	};
 	this.clear = function() {
@@ -3175,7 +3176,7 @@ var DrawStyle = {
 		self.straightenStrength = 0;
 		self.verticalPosition = 0.5;
 		self.positionDamping = 0;
-		self.canDestruct = !0;
+		self.canDestruct = true;
 		self.idleSpeed = 0.3;
 		self.speed = self.idleSpeed;
 		var canvas, Context2d, canvasDimensions = {},
@@ -4283,7 +4284,7 @@ var RibbonPullDirection = {
 							ribbon.speed = (newSpeed - newIdleSpeed) * d.value + newIdleSpeed
 						},
 						onComplete: function() {
-							ribbon.canDestruct = !0;
+							ribbon.canDestruct = true;
 							ribbon.clearPullPoint()
 						}
 					})

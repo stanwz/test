@@ -109,14 +109,14 @@ var Tween = function(obj, duration, options) {
 	};
 	this.mechanism = function() {
 		if (self.stopped) return false;
-		var a = self.endAt - (new Date).getTime();
-		if (a <= 0) {
+		var remainingTIme = self.endAt - (new Date).getTime();
+		if (remainingTIme <= 0) {
 			self.stop();
 			self.advanceFrame(1, 1);
 			self.onUpdate();
 			self.onComplete();
 		} else {
-			self.advanceFrame(self.time - a, self.time);
+			self.advanceFrame(self.time - remainingTIme, self.time);
 			self.onUpdate();
 		}
 	};
@@ -240,9 +240,9 @@ Ease = {
 		}
 	}
 };
-GlobalEvent = function(a, d) {
-	this.name = a;
-	this.data = d
+GlobalEvent = function(name, data) {
+	this.name = name;
+	this.data = data
 };
 GlobalEvent.RENDER_FRAME = "global_event_render_frame";
 GlobalEvent.WINDOW_RESIZE = "global_event_window_resize";
@@ -250,9 +250,11 @@ GlobalEvent.WINDOW_SCROLL = "global_event_window_scroll";
 GlobalEvent.WINDOW_LOAD = "global_event_window_load";
 GlobalEvents = {
 	registry: {},
-	dispatch: function(a) {
-		this.register(a.name);
-		for (var d = this.registry[a.name], f = 0; f < d.length; f++) d[f](a)
+	dispatch: function(event) {
+		this.register(event.name);
+		for (var eventListeners = this.registry[event.name], i = 0; i < eventListeners.length; i++) {
+			eventListeners[i](event);
+		}
 	},
 	addListener: function(a, d) {
 		this.register(a);
@@ -354,10 +356,16 @@ var R = {
 		GlobalEvents.dispatch(R.scrollEvent)
 	},
 	windowRender: function() {
-		R.rendering && (R.prefixed.requestAnimationFrame(R.windowRender), GlobalEvents.dispatch(R.renderEvent))
+		if (R.rendering) {
+			R.prefixed.requestAnimationFrame(R.windowRender);
+			GlobalEvents.dispatch(R.renderEvent);
+		}
 	},
 	startRendering: function(a) {
-		R.rendering || (R.prefixed.requestAnimationFrame(R.windowRender), R.rendering = !0)
+		if (!R.rendering) {
+			R.prefixed.requestAnimationFrame(R.windowRender);
+			R.rendering = true;
+		}
 	},
 	stopRendering: function() {
 		R.rendering = !1
@@ -1190,8 +1198,7 @@ R.Site = function() {
 		this.ribbonManager = new RibbonInteractionManager(this.ribbon);
 	};
 	this.addListeners = function() {
-		GlobalEvents.addListener(GlobalEvent.WINDOW_RESIZE,
-			this.onResize.bind(this));
+		GlobalEvents.addListener(GlobalEvent.WINDOW_RESIZE, this.onResize.bind(this));
 		GlobalEvents.addListener(GlobalEvent.WINDOW_SCROLL, this.onScroll.bind(this));
 		this.html.siteHeadDownArrowLink.onclick = this.downArrowClick.bind(this);
 		window.onkeydown = this.onKeyDown.bind(this);
@@ -1327,8 +1334,7 @@ R.Site = function() {
 			this.animating = !0;
 			var f = this.ribbon.getCurrentVerticalPosition();
 			this.ribbon.verticalPosition = f;
-			this.ribbon.positionDamping =
-				1;
+			this.ribbon.positionDamping = 1;
 			this.ribbon.canDestruct = !1;
 			var c = window.innerHeight,
 				h = (c - self.navHeight) / c,
@@ -1966,8 +1972,7 @@ R.Site.prototype.ribbonDragVertical = function(a, d, f, g) {
 	0 < R.scrollbarWidth && (h = R.normalize(a, h, 1, 0, 1), h = Math.max(h, 0), h = Math.min(h, 1), R.setTransform(this.html.navMenuLink, "translate3d(" + h * -R.scrollbarWidth + "px,0,0)"));
 	this.ribbon.straightenStrength = c;
 	this.ribbon.verticalPosition = (f - d) * a / 1 + d;
-	g && (this.ribbon.positionDamping =
-		a);
+	g && (this.ribbon.positionDamping = a);
 	this.ribbon.straighten()
 };
 R.Site.prototype.startHorizontalDrag = function(a) {
@@ -3233,8 +3238,7 @@ var DrawStyle = {
 			var contentHeight = canvasDimensions.height * Math.pow(1 - self.positionDamping, 2);
 			var totalYOffset = self.yOffset + self.yOffsetForce;
 			if(Math.abs(halfAvgSegmentHeight - totalYOffset) > contentHeight / 2) {
-				totalYOffset += (( halfAvgSegmentHeight - totalYOffset > 0 ? halfAvgSegmentHeight - contentHeight / 2 : halfAvgSegmentHeight + contentHeight / 2) - totalYOffset) *
-					Math.max((self.positionDamping - 0.1) / 0.9, 0);
+				totalYOffset += (( halfAvgSegmentHeight - totalYOffset > 0 ? halfAvgSegmentHeight - contentHeight / 2 : halfAvgSegmentHeight + contentHeight / 2) - totalYOffset) * Math.max((self.positionDamping - 0.1) / 0.9, 0);
 				self.yOffsetForce = totalYOffset - self.yOffset;
 			}
 			self.yOffset = totalYOffset;
@@ -3283,7 +3287,7 @@ var DrawStyle = {
 			segment.width = self.width;
 			segment.straightenStrength = Math.min(self.straightenStrength + self.pullStrength, 1);
 			segment.applyForces(SegmentAnchorPoint.CENTER);
-			for (var seg = segment.nextSegment, pullStrength; segment;) {
+			for (var seg = segment.nextSegment, pullStrength; seg;) {
 				seg.width = self.width;
 				pullStrength = 1;
 				if (self.pullSpread > 0) {
@@ -4180,7 +4184,7 @@ var RibbonPullDirection = {
 		this.ribbon = ribbon;
 		var draw = function() {
 			ribbon.advance();
-			ribbon.draw()
+			ribbon.draw();
 		};
 		this.attachToRenderFrame = function() {
 			GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, draw)
@@ -4188,39 +4192,40 @@ var RibbonPullDirection = {
 		this.detachFromRenderFrame = function() {
 			GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, draw)
 		};
-		this.animateToTop = function(d) {
-			var g = {
+		this.animateToTop = function(callback) {
+			var tweenObj = {
 				value: 0
 			};
-			new Tween(g, 860, {
+			new Tween(tweenObj, 860, {
 				value: 1,
 				ease: Ease.easeIn.sine,
-				onUpdate: function(c) {
-					ribbon.verticalPosition = 0.5 - 0.5 * g.value;
-					ribbon.positionDamping = g.value;
-					ribbon.straightenStrength =
-						Math.min(g.value / 0.85, 1);
+				onUpdate: function() {
+					ribbon.verticalPosition = 0.5 - 0.5 * tweenObj.value;
+					ribbon.positionDamping = tweenObj.value;
+					ribbon.straightenStrength = Math.min(tweenObj.value / 0.85, 1);
 					ribbon.straighten()
 				},
-				onComplete: function(a) {
-					d && d()
+				onComplete: function() {
+					if (callback) {
+						callback();
+					}
 				}
 			})
 		};
 		this.releaseFromTop = function() {
-			var d = {
+			var tweenObj = {
 				value: 1
 			};
-			new Tween(d, 860, {
+			new Tween(tweenObj, 860, {
 				value: 0,
 				ease: Ease.easeOut.sine,
-				onUpdate: function(g) {
-					ribbon.verticalPosition = 0.5 - 0.5 * d.value;
-					ribbon.positionDamping = d.value;
-					ribbon.straightenStrength = Math.min(d.value / 0.85, 1);
+				onUpdate: function() {
+					ribbon.verticalPosition = 0.5 - 0.5 * tweenObj.value;
+					ribbon.positionDamping = tweenObj.value;
+					ribbon.straightenStrength = Math.min(tweenObj.value / 0.85, 1);
 					ribbon.straighten()
 				},
-				onComplete: function(a) {}
+				onComplete: function() {}
 			})
 		};
 		this.animatePull = function(pullDirection, color) {
@@ -4539,11 +4544,18 @@ var Stage = function(a, d) {
 	};
 	this.refreshMouseCanvas = function(a, c) {};
 	this.startRendering = function() {
-		self.rendering || (GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, this.render), GlobalEvents.addListener(GlobalEvent.MOUSE_EVAL,
-			this.evaluateMouse), self.rendering = !0)
+		if (!self.rendering) {
+			GlobalEvents.addListener(GlobalEvent.RENDER_FRAME, this.render);
+			GlobalEvents.addListener(GlobalEvent.MOUSE_EVAL, this.evaluateMouse);
+			self.rendering = true;
+		}
 	};
 	this.stopRendering = function() {
-		self.rendering && (GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, this.render), GlobalEvents.removeListener(GlobalEvent.MOUSE_EVAL, this.evaluateMouse), self.rendering = !1)
+		if (self.rendering) {
+			GlobalEvents.removeListener(GlobalEvent.RENDER_FRAME, this.render);
+			GlobalEvents.removeListener(GlobalEvent.MOUSE_EVAL, this.evaluateMouse);
+			self.rendering = false;
+		}
 	};
 	this.render = function() {
 		self.refreshCanvas();

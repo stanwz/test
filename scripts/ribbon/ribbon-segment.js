@@ -77,7 +77,7 @@ define([
 		self.graphic = null;
 		self.polygon = new Polygon();
 		self.simplexStepper = new SimplexStepper(Math.random());
-		self.straightenStrength = 0.6;
+		self.straightenStrength = 0;
 
 		self.fullRibbonWidth = 100;
 		self.collapsedRibbonWidth = 60;

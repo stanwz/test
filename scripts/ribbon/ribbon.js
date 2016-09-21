@@ -1,7 +1,10 @@
 define([
 	'ribbon/ribbon-segment',
-	'settings'
-],function(RibbonSegment, settings){
+	'settings',
+	'ribbon/global-events',
+	'ribbon/ease',
+	'ribbon/tween'
+],function(RibbonSegment, settings, GlobalEvents, Ease, Tween){
 
 	var SearchDirection = {
 		LEFT: 0,
@@ -14,6 +17,12 @@ define([
 		self.drivePoint = 0.5;
 		self.idleSpeed = 0.2;
 		self.speed = self.idleSpeed;
+		self.straightenStrength = 0;
+		self.pullStrength = 0;
+		self.pullSpread = 0;
+		self.verticalPosition = 0.5;
+		self.positionDamping = 0;
+		self.canDestruct =  true;
 
 		var lastSegment;
 		var segmentPulled;
@@ -23,10 +32,10 @@ define([
 
 		function getSegmentFromPullPoint(pullPoint) {
 			for (var segment = lastSegment; segment;) {
-				if (segment.endPoint.x / settings.dimensions.width > pullPoint || !segment.nextSegment) {
+				if (segment.endPoint.x / settings.dimensions.width < pullPoint || !segment.previousSegment) {
 					return segment;
 				}
-				segment = segment.nextSegment;
+				segment = segment.previousSegment;
 			}
 		}
 
@@ -38,7 +47,7 @@ define([
 
 		self._construct = function() {
 			self.createSegments();
-			requestAnimationFrame(self.advance);
+			self.attachToRenderFrame();
 		};
 
 		self.advance = function() {
@@ -59,7 +68,44 @@ define([
 				segment = segment.previousSegment;
 			}
 			self.draw();
-			// requestAnimationFrame(self.advance);
+		};
+
+		self.animateToTop = function(){
+			var obj = {value: 0};
+			new Tween(obj, 2000, {
+				value: 1,
+				ease: Ease.easeIn.sine,
+				onUpdate: function() {
+					// self.verticalPosition = 0.5 - 0.5 * tweenObj.value;
+					// self.positionDamping = tweenObj.value;
+					self.straightenStrength = obj.value;
+					self.straighten();
+				},
+				onComplete: function() {}
+			})
+		};
+
+		self.animateToBottom = function() {
+			var obj = {value: 1};
+			new Tween(obj, 2000, {
+				value: 0,
+				ease: Ease.easeIn.sine,
+				onUpdate: function() {
+					// self.verticalPosition = 0.5 - 0.5 * obj.value;
+					// self.positionDamping = obj.value;
+					self.straightenStrength = obj.value;
+					self.straighten();
+				},
+				onComplete: function() {}
+			});
+		};
+
+		self.attachToRenderFrame = function() {
+			GlobalEvents.addListener(settings.RENDER_FRAME, self.advance);
+		};
+
+		self.detachFromRenderFrame = function() {
+			GlobalEvents.removeListener(settings.RENDER_FRAME, self.advance);
 		};
 
 		self.clearPullPoint = function() {
@@ -114,53 +160,56 @@ define([
 			// self.width = self.collapsedRibbonWidth + (self.fullRibbonWidth - self.collapsedRibbonWidth) * (1 - self.straightenStrength);
 
 			var segment = segmentPulled ? segmentPulled : getSegmentFromPullPoint(0.5);
-			segment.width = self.width;
+			// segment.width = self.width;
+
 			segment.straightenStrength = Math.min(self.straightenStrength + self.pullStrength, 1);
 			segment.applyForces(settings.anchorPoints.CENTER);
-			for (var seg = segment.nextSegment, pullStrengthScale; segment;) {
-				seg.width = self.width;
-				pullStrengthScale = 1;
-				if (self.pullSpread > 0) {
-					// the further away from the pull, the weak the pull strength
-					var distanceLvl = seg.distanceFromSegment(segment, SearchDirection.LEFT) / totalSegmentLengthAtLastPull;
-					var doublePullSpread = 2 * self.pullSpread,
-						quadrupleSpread = 2 * doublePullSpread;
+			var pullStrength = 0, pullStrengthScale = 1;
 
-					if(distanceLvl < doublePullSpread) {
-						pullStrengthScale = 1
-					} else if (distanceLvl > quadrupleSpread) {
-						pullStrengthScale = 0;
-					} else {
-						pullStrengthScale = 1 - (distanceLvl - doublePullSpread) / doublePullSpread;
-					}
-				}
-				var pullStrength = pullStrengthScale * self.pullStrength;
+			for (var seg = segment.nextSegment; seg;) {
+				// seg.width = self.width;
+				// if (self.pullSpread > 0) {
+				// 	// the further away from the pull, the weaker the pull strength is
+				// 	var distanceLvl = seg.distanceFromSegment(segment, SearchDirection.LEFT) / totalSegmentLengthAtLastPull;
+				// 	var doublePullSpread = 2 * self.pullSpread,
+				// 		quadrupleSpread = 2 * doublePullSpread;
+				//
+				// 	if(distanceLvl < doublePullSpread) {
+				// 		pullStrengthScale = 1
+				// 	} else if (distanceLvl > quadrupleSpread) {
+				// 		pullStrengthScale = 0;
+				// 	} else {
+				// 		pullStrengthScale = 1 - (distanceLvl - doublePullSpread) / doublePullSpread;
+				// 	}
+				// }
+				pullStrength = pullStrengthScale * self.pullStrength;
+
 				seg.straightenStrength = Math.min(self.straightenStrength + pullStrength, 1);
 				seg.applyForces(settings.anchorPoints.START);
-				seg = seg.nextSegment
+				seg = seg.nextSegment;
 			}
 			for (seg = segment.previousSegment; seg;) {
-				seg.width = self.width;
-				distanceLvl = 1;
-				if (self.pullSpread > 0) {
-					distanceLvl = seg.distanceFromSegment(segment, SearchDirection.RIGHT) / totalSegmentLengthAtLastPull;
-					doublePullSpread = 2 * self.pullSpread;
-					quadrupleSpread = 2 * doublePullSpread;
-
-					if(distanceLvl < doublePullSpread) {
-						pullStrengthScale = 1;
-					} else if (distanceLvl > quadrupleSpread) {
-						pullStrengthScale = 0;
-					} else {
-						pullStrengthScale = 1 - (distanceLvl - doublePullSpread) / (quadrupleSpread - doublePullSpread);
-					}
-
-				}
-
+				// seg.width = self.width;
+				// distanceLvl = 1;
+				// if (self.pullSpread > 0) {
+				// 	distanceLvl = seg.distanceFromSegment(segment, SearchDirection.RIGHT) / totalSegmentLengthAtLastPull;
+				// 	doublePullSpread = 2 * self.pullSpread;
+				// 	quadrupleSpread = 2 * doublePullSpread;
+				//
+				// 	if(distanceLvl < doublePullSpread) {
+				// 		pullStrengthScale = 1;
+				// 	} else if (distanceLvl > quadrupleSpread) {
+				// 		pullStrengthScale = 0;
+				// 	} else {
+				// 		pullStrengthScale = 1 - (distanceLvl - doublePullSpread) / (quadrupleSpread - doublePullSpread);
+				// 	}
+				//
+				// }
 				pullStrength = pullStrengthScale * self.pullStrength;
+
 				seg.straightenStrength = Math.min(self.straightenStrength + pullStrength, 1);
 				seg.applyForces(settings.anchorPoints.END);
-				seg = seg.previousSegment
+				seg = seg.previousSegment;
 			}
 		};
 

@@ -13,6 +13,11 @@ require.config({
 define('settings',['pixi'],function(PIXI){
 	var settings = {};
 
+	settings.RENDER_FRAME = "global_event_render_frame";
+	settings.WINDOW_RESIZE = "global_event_window_resize";
+	settings.WINDOW_SCROLL = "global_event_window_scroll";
+	settings.WINDOW_LOAD = "global_event_window_load";
+
 	settings.anchorPoints = {
 		START: 0,
 		CENTER: 1,
@@ -34,8 +39,26 @@ define('settings',['pixi'],function(PIXI){
 });
 
 define([
-	'ribbon/ribbon'
-],function(Ribbon){
+	'ribbon/ribbon',
+	'ribbon/global-events',
+	'settings'
+],function(Ribbon, GlobalEvents, settings){
 
-	new Ribbon();
+	var ribbon = new Ribbon();
+
+	var renderEvent = {name: settings.RENDER_FRAME};
+
+	render();
+
+	document.addEventListener('keydown', function(e){
+		switch(e.keyCode) {
+			case 38: ribbon.animateToTop();break;
+			case 40: ribbon.animateToBottom();break;
+		}
+	});
+
+	function render() {
+		window.requestAnimationFrame(render);
+		GlobalEvents.dispatch(renderEvent);
+	}
 });

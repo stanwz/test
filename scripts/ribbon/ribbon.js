@@ -24,14 +24,14 @@ define([
 		self.positionDamping = 0;
 		self.canDestruct =  true;
 
-		var lastSegment;
+		var currentSegment;
 		var segmentPulled;
 		var segments = {back: [], front: []};
 		var totalSegmentLengthAtLastPull;
-		var totalSegmentLength;
+		var totalSegmentLength = 0;
 
 		function getSegmentFromPullPoint(pullPoint) {
-			for (var segment = lastSegment; segment;) {
+			for (var segment = currentSegment; segment;) {
 				if (segment.endPoint.x / settings.dimensions.width < pullPoint || !segment.previousSegment) {
 					return segment;
 				}
@@ -63,7 +63,7 @@ define([
 				segment = segment.nextSegment;
 			}
 
-			for (segment = lastSegment; segment;) {
+			for (segment = currentSegment; segment;) {
 				segment.resetPolygon();
 				segment = segment.previousSegment;
 			}
@@ -115,9 +115,13 @@ define([
 		self.createSegments = function () {
 			segments.back.length = 0;
 			segments.front.length = 0;
-			for (lastSegment = new RibbonSegment(); lastSegment.endPoint.x < settings.dimensions.width + 600;) {
-				segments[lastSegment.backface? 'back' : 'front'].push(lastSegment);
-				lastSegment = new RibbonSegment(lastSegment);
+			for (currentSegment = new RibbonSegment(); currentSegment.endPoint.x < settings.dimensions.width + 600;) {
+				segments[currentSegment.backface? 'back' : 'front'].push(currentSegment);
+				totalSegmentLength += currentSegment.segmentLength;
+				// currentSegment.width = self.width;
+				// currentSegment.straightenStrength = Math.max(currentSegment.nextSegment.straightenStrength, self.pullStrength);
+				currentSegment.applyForces(SegmentAnchorPoint.END);
+				currentSegment = new RibbonSegment(currentSegment);
 			}
 
 			segments.back.forEach(function (segment) {
@@ -130,18 +134,18 @@ define([
 		};
 
 		self.destroySegments = function() {
-			for (;lastSegment.endPoint.x < -800;) {
+			for (;currentSegment.endPoint.x < -800;) {
 				// flat3dDrawer.removePolygon(lastSegment.polygon);
 				// totalSegmentLength -= currentSegment.segmentLength;
-				lastSegment = lastSegment.nextSegment;
-				lastSegment.previousSegment = null;
+				currentSegment = currentSegment.nextSegment;
+				currentSegment.previousSegment = null;
 			}
 
-			for (;lastSegment.startPoint.x > settings.dimensions.width + 800;) {
+			for (;currentSegment.startPoint.x > settings.dimensions.width + 800;) {
 				// flat3dDrawer.removePolygon(lastSegment.polygon);
 				// totalSegmentLength -= currentSegment.segmentLength;
-				lastSegment = lastSegment.previousSegment;
-				lastSegment.nextSegment = null;
+				currentSegment = currentSegment.previousSegment;
+				currentSegment.nextSegment = null;
 			}
 		};
 
@@ -156,13 +160,13 @@ define([
 		};
 
 		self.move = function(amount) {
-			for (var segment = lastSegment; segment;) {
+			for (var segment = currentSegment; segment;) {
 				segment.move(amount);
 				segment = segment.previousSegment;
 			}
-			if (self.canDestruct) {
-				self.destroySegments();
-			}
+			// if (self.canDestruct) {
+			// 	self.destroySegments();
+			// }
 			// self.createSegments();
 		};
 

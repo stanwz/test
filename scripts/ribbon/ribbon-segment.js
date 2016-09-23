@@ -65,7 +65,7 @@ define([
 
 	function RibbonSegment(segment) {
 
-		var baseAngleUnit = 25;
+		var baseAngleUnit = 40;
 		var self = this;
 
 		self.originalStartPoint = {};

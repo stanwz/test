@@ -3513,7 +3513,13 @@ var DrawStyle = {
 				var diff1, diff2, close;
 
 				if (areaDiff == 0 && segDistance == 0) {
-					close = currentOriginalStartingPoint.x < 0 - segOriginalStartPoint.x != 0 > currentOriginalStartingPoint.x - segOriginalEndPoint.x != 0 > currentOriginalEndPoint.x - segOriginalStartPoint.x != 0 > currentOriginalEndPoint.x - segOriginalEndPoint.x || 0 > currentOriginalStartingPoint.y - segOriginalStartPoint.y != 0 > currentOriginalStartingPoint.y - segOriginalEndPoint.y != 0 > currentOriginalEndPoint.y - segOriginalStartPoint.y != 0 > currentOriginalEndPoint.y - segOriginalEndPoint.y
+					close = currentOriginalStartingPoint.x < 0 - segOriginalStartPoint.x != 0 >
+						currentOriginalStartingPoint.x - segOriginalEndPoint.x != 0 >
+						currentOriginalEndPoint.x - segOriginalStartPoint.x != 0 >
+						currentOriginalEndPoint.x - segOriginalEndPoint.x ||
+						0 > currentOriginalStartingPoint.y - segOriginalStartPoint.y != 0 >
+						currentOriginalStartingPoint.y - segOriginalEndPoint.y != 0 >
+						currentOriginalEndPoint.y - segOriginalStartPoint.y != 0 > currentOriginalEndPoint.y - segOriginalEndPoint.y
 				} else {
 					diff1 = areaDiff / segDistance;
 					diff2 = getAreaDiff(getDistance(currentOriginalStartingPoint, segOriginalStartPoint), currentDistance) / segDistance;

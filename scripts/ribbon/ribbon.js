@@ -119,8 +119,8 @@ define([
 				segments[currentSegment.backface? 'back' : 'front'].push(currentSegment);
 				totalSegmentLength += currentSegment.segmentLength;
 				// currentSegment.width = self.width;
-				// currentSegment.straightenStrength = Math.max(currentSegment.nextSegment.straightenStrength, self.pullStrength);
-				currentSegment.applyForces(SegmentAnchorPoint.END);
+				// currentSegment.straightenStrength = Math.max(currentSegment.previousSegment.straightenStrength, self.pullStrength);
+				currentSegment.applyForces(settings.anchorPoints.END);
 				currentSegment = new RibbonSegment(currentSegment);
 			}
 

@@ -24,14 +24,18 @@ define([
 		self.positionDamping = 0;
 		self.canDestruct =  true;
 
-		var currentSegment;
+		self.primaryColor = 1;
+		self.secondaryColor = 0;
+
+		var lastSegment = new RibbonSegment(null, self.primaryColor, self.secondaryColor);
+		var firstSegment = lastSegment;
 		var segmentPulled;
 		var segments = {back: [], front: []};
 		var totalSegmentLengthAtLastPull;
 		var totalSegmentLength = 0;
 
 		function getSegmentFromPullPoint(pullPoint) {
-			for (var segment = currentSegment; segment;) {
+			for (var segment = lastSegment; segment;) {
 				if (segment.endPoint.x / settings.dimensions.width < pullPoint || !segment.previousSegment) {
 					return segment;
 				}
@@ -63,9 +67,9 @@ define([
 				segment = segment.nextSegment;
 			}
 
-			for (segment = currentSegment; segment;) {
+			for (segment = firstSegment; segment;) {
 				segment.resetPolygon();
-				segment = segment.previousSegment;
+				segment = segment.nextSegment;
 			}
 			self.draw();
 		};
@@ -113,17 +117,23 @@ define([
 		};
 
 		self.createSegments = function () {
-			segments.back.length = 0;
-			segments.front.length = 0;
-			for (currentSegment = new RibbonSegment(); currentSegment.endPoint.x < settings.dimensions.width + 600;) {
-				segments[currentSegment.backface? 'back' : 'front'].push(currentSegment);
-				totalSegmentLength += currentSegment.segmentLength;
+			for (; lastSegment.endPoint.x < settings.dimensions.width + 600;) {
+				segments[lastSegment.backface? 'back' : 'front'].push(lastSegment);
+				totalSegmentLength += lastSegment.segmentLength;
 				// currentSegment.width = self.width;
 				// currentSegment.straightenStrength = Math.max(currentSegment.previousSegment.straightenStrength, self.pullStrength);
-				currentSegment.applyForces(settings.anchorPoints.END);
-				currentSegment = new RibbonSegment(currentSegment);
+				lastSegment.applyForces(settings.anchorPoints.END);
+				lastSegment = new RibbonSegment(lastSegment, self.primaryColor, self.secondaryColor);
 			}
 
+			for (; firstSegment.startPoint.x > -600;) {
+				segments[firstSegment.backface? 'back' : 'front'].push(firstSegment);
+				totalSegmentLength += firstSegment.segmentLength;
+				// currentSegment.width = self.width;
+				// currentSegment.straightenStrength = Math.max(currentSegment.previousSegment.straightenStrength, self.pullStrength);
+				firstSegment.applyForces(settings.anchorPoints.END);
+				firstSegment = new RibbonSegment(firstSegment, self.primaryColor, self.secondaryColor, true);
+			}
 			segments.back.forEach(function (segment) {
 				settings.stage.addChild(segment.graphic);
 			});
@@ -133,19 +143,28 @@ define([
 			});
 		};
 
+		function removeSegment(segment) {
+			var list = segments[segment.backface ? 'back' : 'front'];
+			for (var i = list.length; i >= 0; i--) {
+				if (list[i] === segment) {
+					list.splice(i,1);
+				}
+			}
+		}
+
 		self.destroySegments = function() {
-			for (;currentSegment.endPoint.x < -800;) {
-				// flat3dDrawer.removePolygon(lastSegment.polygon);
-				// totalSegmentLength -= currentSegment.segmentLength;
-				currentSegment = currentSegment.nextSegment;
-				currentSegment.previousSegment = null;
+			for (;firstSegment.endPoint.x < -600;) {
+				totalSegmentLength -= firstSegment.segmentLength;
+				firstSegment = firstSegment.nextSegment;
+				removeSegment(firstSegment.previousSegment);
+				firstSegment.previousSegment = null;
 			}
 
-			for (;currentSegment.startPoint.x > settings.dimensions.width + 800;) {
-				// flat3dDrawer.removePolygon(lastSegment.polygon);
-				// totalSegmentLength -= currentSegment.segmentLength;
-				currentSegment = currentSegment.previousSegment;
-				currentSegment.nextSegment = null;
+			for (;lastSegment.startPoint.x > settings.dimensions.width + 600;) {
+				totalSegmentLength -= lastSegment.segmentLength;
+				lastSegment = lastSegment.previousSegment;
+				removeSegment(lastSegment.nextSegment);
+				lastSegment.nextSegment = null;
 			}
 		};
 
@@ -160,14 +179,14 @@ define([
 		};
 
 		self.move = function(amount) {
-			for (var segment = currentSegment; segment;) {
+			for (var segment = firstSegment; segment;) {
 				segment.move(amount);
-				segment = segment.previousSegment;
+				segment = segment.nextSegment;
 			}
-			// if (self.canDestruct) {
-			// 	self.destroySegments();
-			// }
-			// self.createSegments();
+			if (self.canDestruct) {
+				self.destroySegments();
+			}
+			self.createSegments();
 		};
 
 		self.setPullPoint = function(pullPoint) {

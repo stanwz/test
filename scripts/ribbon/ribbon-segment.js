@@ -15,6 +15,8 @@ define([
 
 	var SegmentMinLength = 250;
 	var SegmentMaxLength = 600;
+
+	var baseAngleUnit = 40;
 	var oneSidedWeightedRandom = new WeightedRandom(1.5, 0, 1);
 	var twoSidedWeightedRandom = new WeightedRandom(1.5, 1, 1);
 
@@ -63,9 +65,8 @@ define([
 		this._construct();
 	}
 
-	function RibbonSegment(segment) {
+	function RibbonSegment(segment, color1, color2, toLeft) {
 
-		var baseAngleUnit = 40;
 		var self = this;
 
 		self.originalStartPoint = {};
@@ -73,8 +74,10 @@ define([
 		self.startPoint = {};
 		self.endPoint = {};
 		self.backface = null;
-		self.color = 0xE45B5B;
 		self.graphic = null;
+		self.primaryColor = color1;
+		self.secondaryColor = color2;
+		self.color = 0xE45B5B;
 		self.polygon = new Polygon();
 		self.simplexStepper = new SimplexStepper(Math.random());
 		self.straightenStrength = 0;
@@ -83,33 +86,55 @@ define([
 		self.collapsedRibbonWidth = 60;
 		self.width = self.fullRibbonWidth;
 
-		self._construct = function(segment) {
+		self._construct = function(segment, toLeft) {
 
 			self.graphic = new PIXI.Graphics();
 
 			if (segment) {
-				self.previousSegment = segment;
-				segment.nextSegment = self;
-				self.originalStartPoint.x = self.startPoint.x = segment.originalEndPoint.x;
-				self.originalStartPoint.y = self.startPoint.y = segment.originalEndPoint.y;
+				if (toLeft) {
+					self.nextSegment= segment;
+					segment.previousSegment = self;
+					self.originalEndPoint.x = self.endPoint.x = segment.originalStartPoint.x;
+					self.originalEndPoint.y = self.endPoint.y = segment.originalStartPoint.y;
+				} else {
+					self.previousSegment = segment;
+					segment.nextSegment = self;
+					self.originalStartPoint.x = self.startPoint.x = segment.originalEndPoint.x;
+					self.originalStartPoint.y = self.startPoint.y = segment.originalEndPoint.y;
+				}
 				self.backface = !segment.backface;
 				if(self.backface) {
 					self.color = 0xB54646;
 					baseAngleUnit /= 2;
 				}
 			} else {
-				self.originalStartPoint.x = self.startPoint.x = -200;
+				self.originalStartPoint.x = self.startPoint.x = settings.dimensions.width / 2;
 				self.originalStartPoint.y = self.startPoint.y = settings.dimensions.height / 2;
+				if (toLeft) {
+					self.backface = true;
+				}
 			}
 
 			var direction = Directions.ANY;
 
-			if (self.originalStartPoint.y >= settings.dimensions.height / 2 + 100){
-				direction = Directions.UP;
+
+			if (self.previousSegment) {
+				if (self.originalStartPoint.y >= settings.dimensions.height / 2 + 100){
+					direction = Directions.UP;
+				}
+				if (self.originalStartPoint.y <=  settings.dimensions.height / 2 -100) {
+					direction = Directions.DOWN;
+				}
+			} else if (self.nextSegment) {
+				if (self.originalEndPoint.y >= settings.dimensions.height / 2 + 100){
+					direction = Directions.UP;
+				}
+				if (self.originalEndPoint.y <=  settings.dimensions.height / 2 -100) {
+					direction = Directions.DOWN;
+				}
 			}
-			if (self.originalStartPoint.y <=  settings.dimensions.height / 2 -100) {
-				direction = Directions.DOWN;
-			}
+
+			var angleDiff;
 
 			if (self.previousSegment) {
 
@@ -123,16 +148,37 @@ define([
 					self.primaryAngle = getRandomAngle(self.previousSegment.primaryAngle - 135, self.previousSegment.primaryAngle - 45, direction);
 				}
 
-				var angleDiff = self.primaryAngle - self.previousSegment.primaryAngle;
+				angleDiff = self.primaryAngle - self.previousSegment.primaryAngle;
 
 				if (angleDiff > -55 && angleDiff < 55) {
-					if(0 < angleDiff) {
+					if(angleDiff > 0) {
 						self.primaryAngle = self.previousSegment.primaryAngle + 55.55;
 					} else {
 						self.primaryAngle = self.previousSegment.primaryAngle - 55.55;
 					}
 				}
 
+			} else if(self.nextSegment) {
+				if (self.nextSegment.primaryAngle > -30 && self.nextSegment.primaryAngle < 30) {
+					self.primaryAngle = getRandomAngle(-130, 130, direction);
+				} else if (self.nextSegment.primaryAngle > -90 && self.nextSegment.primaryAngle < 90) {
+					self.primaryAngle = getRandomAngle(-60, 60, direction);
+				} else if (self.nextSegment.primaryAngle <= -90) {
+					self.primaryAngle = getRandomAngle(self.nextSegment.primaryAngle + 45, self.nextSegment.primaryAngle + 135, direction);
+				} else {
+					self.primaryAngle = getRandomAngle(self.nextSegment.primaryAngle - 135, self.nextSegment.primaryAngle - 45, direction);
+				}
+
+				angleDiff = self.nextSegment.primaryAngle - self.primaryAngle;
+
+				if (angleDiff > -55 && angleDiff < 55) {
+					self.primaryAngle = 0 < angleDiff ? self.nextSegment.primaryAngle + 55.55 : self.nextSegment.primaryAngle - 55.55;
+					if (angleDiff > 0) {
+						self.primaryAngle = self.nextSegment.primaryAngle + 55.55;
+					} else {
+						self.primaryAngle = self.nextSegment.primaryAngle - 55.55;
+					}
+				}
 			} else {
 				self.primaryAngle = getRandomAngle(-130, 130, direction);
 			}
@@ -150,65 +196,14 @@ define([
 
 			self.segmentLength = SegmentMinLength + allowedRatio * (SegmentMaxLength - SegmentMinLength);
 
-			self.originalEndPoint.x = self.endPoint.x = self.startPoint.x + self.segmentLength * Math.cos(self.primaryAngle * DegToRad);
-			self.originalEndPoint.y = self.endPoint.y = self.startPoint.y + self.segmentLength * Math.sin(self.primaryAngle * DegToRad);
-		};
-
-		self.advance = function() {
-			self.simplexStepper.advance();
-		};
-
-		self.applyForces = function(anchorPoint) {
-			var currentAngle = self.getCurrentAngle(),
-				xRatio = Math.cos(currentAngle * DegToRad),
-				yRatio = Math.sin(currentAngle * DegToRad);
-
-			if (anchorPoint == settings.anchorPoints.CENTER) {
-				var anchorPointX = (self.startPoint.x + self.endPoint.x) / 2;
-				var anchorPointY = (self.startPoint.y + self.endPoint.y) / 2;
-				self.endPoint.x = anchorPointX + self.segmentLength / 2 * xRatio;
-				self.endPoint.y = anchorPointY + self.segmentLength / 2 * yRatio;
-				self.startPoint.x = anchorPointX - self.segmentLength / 2 * xRatio;
-				self.startPoint.y = anchorPointY - self.segmentLength / 2 * yRatio
-			} else if (anchorPoint == settings.anchorPoints.START) {
-				if (self.previousSegment) {
-					self.startPoint.x = self.previousSegment.endPoint.x;
-					self.startPoint.y = self.previousSegment.endPoint.y;
-				}
-				self.endPoint.x = self.startPoint.x + self.segmentLength * xRatio;
-				self.endPoint.y = self.startPoint.y + self.segmentLength * yRatio
+			if (!toLeft) {
+				self.originalEndPoint.x = self.endPoint.x = self.startPoint.x + self.segmentLength * Math.cos(self.primaryAngle * DegToRad);
+				self.originalEndPoint.y = self.endPoint.y = self.startPoint.y + self.segmentLength * Math.sin(self.primaryAngle * DegToRad);
 			} else {
-				if (self.nextSegment) {
-					self.endPoint.x = self.nextSegment.startPoint.x;
-					self.endPoint.y = self.nextSegment.startPoint.y;
-				}
-				self.startPoint.x = self.endPoint.x - self.segmentLength * xRatio;
-				self.startPoint.y = self.endPoint.y - self.segmentLength * yRatio;
+				self.originalStartPoint.x = self.startPoint.x = self.endPoint.x - self.segmentLength * Math.cos(self.primaryAngle * DegToRad);
+				self.originalStartPoint.y = self.startPoint.y = self.endPoint.y - self.segmentLength * Math.sin(self.primaryAngle * DegToRad);
 			}
-		};
 
-		self.draw = function() {
-			// var graphic = self.graphic;
-			// graphic.clear();
-			// graphic.lineStyle(1, 0xf3a33f);
-			// graphic.moveTo(self.startPoint.x, self.startPoint.y);
-			// graphic.lineTo(self.endPoint.x, self.endPoint.y);
-			// graphic.endFill();
-			// settings.renderer.render(settings.stage);
-
-			var graphic = self.graphic;
-			graphic.clear();
-			graphic.beginFill(self.color);
-
-			var points = self.polygon.points;
-			graphic.moveTo(points[0].x, points[0].y);
-			for (var length = self.polygon.getVerticesLength(), pointIndex = 1; pointIndex < length; pointIndex++) {
-				graphic.lineTo(points[pointIndex].x,points[pointIndex].y);
-			}
-			graphic.lineTo(points[0].x, points[0].y);
-			graphic.endFill();
-
-			settings.renderer.render(settings.stage);
 		};
 
 		self.getCurrentAngle = function() {
@@ -216,13 +211,14 @@ define([
 			return (self.primaryAngle + movedAngle) * (1 - self.straightenStrength);
 		};
 
-		self.move = function(amount) {
-			self.startPoint.x -= amount;
-			self.endPoint.x -= amount;
+		self.advance = function() {
+			self.simplexStepper.advance();
 		};
 
 		self.resetPolygon = function () {
+
 			var forward = self.getCurrentAngle();
+
 			var backward = forward - 180;
 			if(backward < - 180) {
 				backward += 360;
@@ -349,7 +345,65 @@ define([
 			}
 		};
 
-		self._construct(segment);
+		self.applyForces = function(anchorPoint) {
+			var currentAngle = self.getCurrentAngle(),
+				xRatio = Math.cos(currentAngle * DegToRad),
+				yRatio = Math.sin(currentAngle * DegToRad);
+
+			if (anchorPoint == settings.anchorPoints.CENTER) {
+				var anchorPointX = (self.startPoint.x + self.endPoint.x) / 2;
+				var anchorPointY = (self.startPoint.y + self.endPoint.y) / 2;
+				self.endPoint.x = anchorPointX + self.segmentLength / 2 * xRatio;
+				self.endPoint.y = anchorPointY + self.segmentLength / 2 * yRatio;
+				self.startPoint.x = anchorPointX - self.segmentLength / 2 * xRatio;
+				self.startPoint.y = anchorPointY - self.segmentLength / 2 * yRatio
+			} else if (anchorPoint == settings.anchorPoints.START) {
+				if (self.previousSegment) {
+					self.startPoint.x = self.previousSegment.endPoint.x;
+					self.startPoint.y = self.previousSegment.endPoint.y;
+				}
+				self.endPoint.x = self.startPoint.x + self.segmentLength * xRatio;
+				self.endPoint.y = self.startPoint.y + self.segmentLength * yRatio
+			} else {
+				if (self.nextSegment) {
+					self.endPoint.x = self.nextSegment.startPoint.x;
+					self.endPoint.y = self.nextSegment.startPoint.y;
+				}
+				self.startPoint.x = self.endPoint.x - self.segmentLength * xRatio;
+				self.startPoint.y = self.endPoint.y - self.segmentLength * yRatio;
+			}
+		};
+
+		self.draw = function() {
+			// var graphic = self.graphic;
+			// graphic.clear();
+			// graphic.lineStyle(1, 0xf3a33f);
+			// graphic.moveTo(self.startPoint.x, self.startPoint.y);
+			// graphic.lineTo(self.endPoint.x, self.endPoint.y);
+			// graphic.endFill();
+			// settings.renderer.render(settings.stage);
+
+			var graphic = self.graphic;
+			graphic.clear();
+			graphic.beginFill(self.color);
+
+			var points = self.polygon.points;
+			graphic.moveTo(points[0].x, points[0].y);
+			for (var length = self.polygon.getVerticesLength(), pointIndex = 1; pointIndex < length; pointIndex++) {
+				graphic.lineTo(points[pointIndex].x,points[pointIndex].y);
+			}
+			graphic.lineTo(points[0].x, points[0].y);
+			graphic.endFill();
+
+			settings.renderer.render(settings.stage);
+		};
+
+		self.move = function(amount) {
+			self.startPoint.x -= amount;
+			self.endPoint.x -= amount;
+		};
+
+		self._construct(segment, toLeft);
 	}
 
 	return RibbonSegment;
